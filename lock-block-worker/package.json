@@ -1,0 +1,12 @@
+{
+  "name": "lock-block-worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node test/smoke.mjs",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "miniflare": "^3.20240909.0"
+  }
+}

@@ -1,0 +1,7 @@
+name = "lock-block-seo"
+main = "src/index.js"
+compatibility_date = "2024-09-01"
+
+routes = [
+  { pattern = "www.lock-block.eu/*", zone_name = "lock-block.eu" }
+]
