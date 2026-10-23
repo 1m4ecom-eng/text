@@ -1,7 +1,7 @@
 # 1M4 Inventory – LOT-Tracking
 
 Erweiterung der Google-Sheets-Warenverwaltung „1M4 Inventory“ (Sheetify-Vorlage) um LOT-Rückverfolgung.
-Umgesetzt und getestet in der Kopie **„1M4 Inventory – LOT TEST“** (gleicher Drive-Ordner wie das Original).
+Getestet in der Kopie **„1M4 Inventory – LOT TEST“**, danach ins Original **„1M4 Inventory“** übernommen (Tab LOTs, Spalten, Formeln, Dropdowns, Formatierung). Das Apps Script muss einmalig von Hand eingefügt werden (siehe Einrichtung).
 
 ## Was sich ändert
 
@@ -23,9 +23,9 @@ Umgesetzt und getestet in der Kopie **„1M4 Inventory – LOT TEST“** (gleich
 - **Dieselbe LOT ein zweites Mal geliefert:** Die Menge in der bestehenden LOT-Zeile erhöhen, keine zweite Zeile anlegen. Doppelte LOTs werden rot markiert.
 - **Wareneingang:** Wird in Purchases der Status auf „✅ Received“ gesetzt, fragt das Sheet, ob eine vorbefüllte LOT-Zeile angelegt werden soll. Danach nur noch LOT und Verfallsdatum eintragen. Bei mehreren LOTs die Zeile kopieren und die Mengen aufteilen.
 
-## Einrichtung (einmalig, in der Testkopie)
+## Einrichtung (einmalig)
 
-1. Die Testkopie öffnen und **Erweiterungen → Apps Script** wählen.
+1. „1M4 Inventory“ öffnen und **Erweiterungen → Apps Script** wählen.
 2. Links auf **＋ → Skript** klicken und die Datei `LotTracking` nennen.
 3. Den Inhalt von [`LotTracking.gs`](LotTracking.gs) vollständig einfügen und speichern. Die bestehenden Sheetify-Dateien bleiben unverändert.
 4. Oben in der Funktionsauswahl **`LOT_install`** wählen, auf **Ausführen** klicken und die Berechtigungen bestätigen.
