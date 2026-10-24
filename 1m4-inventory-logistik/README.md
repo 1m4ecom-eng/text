@@ -4,7 +4,7 @@ Apps-Script-Code für die Google-Tabelle „1M4 Inventory“ (Sheetify Inventory
 
 | Ordner | Ziel | Läuft als |
 |---|---|---|
-| `logistik-buchung/` | eigenes Skriptprojekt „1M4 Logistik Buchung“: Web-App für Wareneingang, Warenausgang, Korrektur | zugreifender Nutzer (Allowlist in Script Property `ALLOWED_EMAILS`) |
+| `logistik-buchung/` (Logistik_Logic.gs, Logistik_Server.gs, Logistik_Form.html, appsscript.json) | eigenes Skriptprojekt „1M4 Logistik Buchung“: Web-App für Wareneingang, Warenausgang, Korrektur | zugreifender Nutzer (Allowlist in Script Property `ALLOWED_EMAILS`) |
 | `sheetify-erweiterung/Bestand_Extern.gs` | zusätzliche Datei im an die Tabelle gebundenen Sheetify-Projekt: externe read-only Bestandstabelle | Besitzer (Zeittrigger) |
 | `sheetify-erweiterung/Schutz_Setup.gs` | einmalig: Schutzbereiche „nur Warnung“ für Formelspalten, Inventory und Setup | Besitzer |
 | `tests/` | lokale Tests der Buchungs- und Filterlogik: `node tests/run_tests.js` | – |
