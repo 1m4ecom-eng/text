@@ -3,6 +3,7 @@ const assert = require('assert');
 const path = require('path');
 const L = require(path.join(__dirname, '../logistik-buchung/Logistik_Logic.gs'));
 const B = require(path.join(__dirname, '../sheetify-erweiterung/Bestand_Extern.gs'));
+const MIG = require(path.join(__dirname, '../sheetify-erweiterung/Lager_Migration.gs'));
 
 const today = new Date(2026, 9, 24, 15, 0);
 const d = (y, m, dd) => new Date(y, m - 1, dd);
@@ -46,7 +47,7 @@ t('Ausgang FEFO-Vorschlag ohne Warnung', () => {
 t('Ausgang über Bestand -> Warnung', () => {
   const v = L.LB_validateShipment({ member: 'Doris', lsNo: 'LS-1', qty: 150, parts: null }, { members, item, lots, today });
   assert.deepStrictEqual(v.errors, []);
-  assert.ok(v.warnings.some(w => w.includes('Stock on Hand')));
+  assert.ok(v.warnings.some(w => w.includes('Bestand im Lager')));
   assert.ok(v.warnings.some(w => w.includes('OHNE LOT')));
 });
 
@@ -112,7 +113,7 @@ t('Korrektur + und −, Begründung Pflicht', () => {
   const no = L.LB_validateCorrection({ member: 'Sabina', type: types[1].name, qty: 1, lot: 'B', notes: ' ' }, { members, types, item, lots, today });
   assert.ok(no.errors.some(e => e.includes('Begründung')));
   const bad = L.LB_validateCorrection({ member: 'Sabina', type: types[1].name, qty: 1, lot: 'QQ', notes: 'x' }, { members, types, item, lots, today });
-  assert.ok(bad.errors.some(e => e.includes('gehört nicht')));
+  assert.ok(bad.errors.some(e => e.includes('in diesem Lager nicht')));
 });
 
 t('Externer Filter laut Freigabe', () => {
@@ -135,6 +136,92 @@ t('Externer Bestand ohne gesperrte/abgelaufene LOTs, min. 0, EAN n/a leer', () =
     { item: 'P2', rest: 9, blocked: true, expiry: null }
   ];
   assert.deepStrictEqual(B.BE_buildRows(inv, ls, today), [['10000.00', '4745010564024', 'P1', 60], ['12001.01', '', 'P2', 0]]);
+});
+
+
+/* ---------- Phase 3: Lager, Umlagerung, Bestandsansicht, Migration ---------- */
+const lagers = ['Medi-Learn', 'Medichem', 'Medbuy'];
+const mlots = [
+  { lot: 'L1', lager: 'Medi-Learn', rest: 10, expiry: d(2027, 1, 1), received: d(2026, 1, 1), blocked: false, row: 6 },
+  { lot: 'L1', lager: 'Medbuy', rest: 4, expiry: d(2027, 1, 1), received: d(2026, 1, 1), blocked: false, row: 7 },
+  { lot: 'L0', lager: 'Medbuy', rest: 2, expiry: d(2026, 12, 1), received: d(2026, 1, 1), blocked: false, row: 8 },
+  { lot: 'LG', lager: 'Medi-Learn', rest: 5, expiry: d(2027, 1, 1), received: d(2026, 1, 1), blocked: true, row: 9 },
+  { lot: 'LX', lager: 'Medi-Learn', rest: 3, expiry: d(2026, 1, 1), received: d(2025, 1, 1), blocked: false, row: 10 }
+];
+const inML = L.LB_byLager(mlots, 'Medi-Learn'), inMB = L.LB_byLager(mlots, ' Medbuy ');
+
+t('LOTs je Lager getrennt, FEFO nur aus dem gewählten Lager', () => {
+  assert.deepStrictEqual(inML.map(l => l.lot), ['L1', 'LG', 'LX']);
+  assert.deepStrictEqual(L.LB_suggest(inMB, 5, today).parts, [{ lot: 'L0', qty: 2 }, { lot: 'L1', qty: 3 }]);
+  assert.deepStrictEqual(L.LB_suggest(inML, 5, today).parts, [{ lot: 'L1', qty: 5 }]);
+});
+
+t('Lager ist Pflicht und muss aus der Liste kommen', () => {
+  const v = L.LB_validateShipment({ member: 'Doris', lager: 'Lager X', lsNo: 'LS', qty: 1, parts: null }, { members, lagers, item, lots: inML, today });
+  assert.ok(v.errors.some(e => e.includes('Lager')));
+  const r = L.LB_validateReceipt({ member: 'Doris', lager: '', qty: 1, lot: 'N1' }, { members, lagers, item, lots: [], today });
+  assert.ok(r.errors.some(e => e.includes('Lager')));
+});
+
+t('Gleiche LOT in anderem Lager: Eingang legt neue LOT-Zeile an (keine Rückfrage)', () => {
+  const r = L.LB_validateReceipt({ member: 'Doris', lager: 'Medichem', qty: 1, lot: 'L1' }, { members, lagers, item, lots: L.LB_byLager(mlots, 'Medichem'), today });
+  assert.deepStrictEqual(r.errors, []); assert.strictEqual(r.existingLot, null);
+  const s = L.LB_validateReceipt({ member: 'Doris', lager: 'Medbuy', qty: 1, lot: 'L1' }, { members, lagers, item, lots: inMB, today });
+  assert.ok(s.existingLot && s.existingLot.row === 7);
+});
+
+t('Ausgang: LOT aus anderem Lager wird abgelehnt', () => {
+  const v = L.LB_validateShipment({ member: 'Doris', lager: 'Medbuy', lsNo: 'LS', qty: 1, parts: [{ lot: 'LG', qty: 1 }] }, { members, lagers, item, lots: inMB, today });
+  assert.ok(v.errors.some(e => e.includes('in diesem Lager nicht')));
+});
+
+t('Umlagerung: Pflichtfelder, gleiches Lager, LS optional', () => {
+  const ctx = { members, lagers, item: { lotRequired: true, stock: 18 }, lots: inML, today };
+  const same = L.LB_validateTransfer({ member: 'Doris', from: 'Medi-Learn', to: 'Medi-Learn', qty: 1, parts: null }, ctx);
+  assert.ok(same.errors.some(e => e.includes('verschieden')));
+  const noTo = L.LB_validateTransfer({ member: 'Doris', from: 'Medi-Learn', to: '', qty: 1, parts: null }, ctx);
+  assert.ok(noTo.errors.some(e => e.includes('Ziellager')));
+  const ok = L.LB_validateTransfer({ member: 'Doris', from: 'Medi-Learn', to: 'Medbuy', qty: 4, parts: null }, ctx);
+  assert.deepStrictEqual(ok.errors, []); assert.deepStrictEqual(ok.warnings, []);
+  assert.deepStrictEqual(ok.parts, [{ lot: 'L1', qty: 4 }]);
+});
+
+t('Umlagerung: gesperrte/abgelaufene LOT erlaubt mit Warnung, nicht im Vorschlag', () => {
+  const ctx = { members, lagers, item: { lotRequired: true, stock: 18 }, lots: inML, today };
+  const v = L.LB_validateTransfer({ member: 'Doris', from: 'Medi-Learn', to: 'Medbuy', qty: 8, parts: [{ lot: 'LG', qty: 5 }, { lot: 'LX', qty: 3 }] }, ctx);
+  assert.deepStrictEqual(v.errors, []);
+  assert.ok(v.warnings.some(w => w.includes('gesperrt')) && v.warnings.some(w => w.includes('abgelaufen')));
+  assert.deepStrictEqual(v.parts, [{ lot: 'LG', qty: 5 }, { lot: 'LX', qty: 3 }]);
+  const s = L.LB_validateTransfer({ member: 'Doris', from: 'Medi-Learn', to: 'Medbuy', qty: 12, parts: null }, ctx);
+  assert.deepStrictEqual(s.parts, [{ lot: 'L1', qty: 10 }]); assert.strictEqual(s.missing, 2);
+  assert.ok(s.warnings.some(w => w.includes('ohne LOT')));
+  const over = L.LB_validateTransfer({ member: 'Doris', from: 'Medi-Learn', to: 'Medbuy', qty: 30, parts: null }, ctx);
+  assert.ok(over.warnings.some(w => w.includes('Quelllager')));
+});
+
+t('LOT-Zustand für die Bestandsansicht', () => {
+  const st = l => L.LB_lotState(l, today, 90);
+  assert.strictEqual(st({ rest: 5, blocked: false, expiry: d(2028, 1, 1) }), 'frei');
+  assert.strictEqual(st({ rest: 5, blocked: false, expiry: d(2026, 12, 31) }), 'bald');
+  assert.strictEqual(st({ rest: 5, blocked: true, expiry: null }), 'gesperrt');
+  assert.strictEqual(st({ rest: 5, blocked: false, expiry: d(2026, 10, 1) }), 'abgelaufen');
+  assert.strictEqual(st({ rest: 0, blocked: false, expiry: null }), 'aufgebraucht');
+  assert.strictEqual(st({ rest: -1, blocked: false, expiry: null }), 'negativ');
+});
+
+t('Migration: Lager aus Warehouse, nie überschreiben, Unklares melden', () => {
+  const rows = [
+    { sheet: 'Sales', row: 7, item: 'A', lager: '' },
+    { sheet: 'Sales', row: 8, item: 'A', lager: 'Medbuy' },
+    { sheet: 'LOTs', row: 6, item: 'B', lager: '' },
+    { sheet: 'LOTs', row: 7, item: 'C', lager: '' },
+    { sheet: 'Correction', row: 7, item: 'Z', lager: '' },
+    { sheet: 'Purchases', row: 7, item: '', lager: '' }
+  ];
+  const p = MIG.MIG_plan(rows, { A: 'Medi-Learn', B: '', C: 'Lager Nord' }, lagers);
+  assert.deepStrictEqual(p.assign, [{ sheet: 'Sales', row: 7, item: 'A', lager: 'Medi-Learn' }]);
+  assert.strictEqual(p.kept, 1);
+  assert.deepStrictEqual(p.unclear.map(u => u.reason), ['kein Warehouse in Inventory', 'Warehouse "Lager Nord" ist kein Lager in Setup', 'Artikel nicht in Inventory']);
 });
 
 console.log('\n' + n + ' Tests bestanden');

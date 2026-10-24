@@ -15,7 +15,7 @@ var SCHUTZ_CFG = {
     'Correction': ['SKU', 'Stock on Hand'],
     'LOTs': ['SKU', 'Ausgang Verkauf', 'Korrektur (+/−)', 'Restbestand', 'Status', 'Nächste']
   },
-  wholeSheets: ['Inventory', 'Setup']
+  wholeSheets: ['Inventory', 'Setup', 'Bestand je Lager']   // fehlende Tabs werden übersprungen
 };
 
 function SCHUTZ_setup() {
@@ -38,6 +38,7 @@ function SCHUTZ_setup() {
     });
   });
   SCHUTZ_CFG.wholeSheets.forEach(function (name) {
+    if (!ss.getSheetByName(name)) return;
     ss.getSheetByName(name).protect().setDescription(SCHUTZ_CFG.tag + ' Stammdaten ' + name).setWarningOnly(true);
     made.push(name + ' (ganzes Blatt)');
   });

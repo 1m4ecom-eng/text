@@ -10,6 +10,9 @@
  *
  * Alle Namen haben das Präfix LOT_, damit nichts mit dem Sheetify-Script kollidiert.
  * Einmalig im Script-Editor die Funktion LOT_install ausführen.
+ *
+ * Mehrlager (Phase 3): LOT-Zeilen sind lagergebunden (Spalte "Lager" in LOTs und Sales).
+ * Zuordnung nur aus LOTs desselben Lagers; ohne Spalte "Lager" verhält sich alles wie bisher.
  */
 
 var LOT_CFG = {
@@ -22,6 +25,7 @@ var LOT_CFG = {
   firstRow: 6,
   none: 'OHNE LOT',
   blocked: 'Gesperrt',
+  lagerHeader: 'Lager',
   // Spalten im Tab LOTs (1-basiert)
   col: { received: 2, item: 3, sku: 4, lot: 5, expiry: 6, qty: 7, source: 8, lock: 9, rest: 12, status: 13 }
 };
@@ -147,19 +151,28 @@ function LOT_asDate(v) {
   return (v instanceof Date && !isNaN(v)) ? v : null;
 }
 
-/** Lädt alle LOTs gruppiert nach Artikel (Restbestand aus den Formeln). */
+/** Schlüssel Artikel + Lager (Lager leer, solange es keine Spalte "Lager" gibt). */
+function LOT_key(item, lager) {
+  return String(item).trim() + '\u0001' + String(lager || '').trim();
+}
+
+/** Lädt alle LOTs gruppiert nach Artikel + Lager (Restbestand aus den Formeln). */
 function LOT_loadLots(ss) {
   SpreadsheetApp.flush();
   var sh = ss.getSheetByName(LOT_CFG.lotSheet);
   var n = sh.getLastRow() - LOT_CFG.firstRow + 1;
   var byItem = {};
   if (n <= 0) return byItem;
-  var c = LOT_CFG.col;
-  var vals = sh.getRange(LOT_CFG.firstRow, 1, n, c.status).getValues();
+  var c = LOT_CFG.col, cLager = LOT_headerMap(sh)[LOT_CFG.lagerHeader] || 0;
+  var vals = sh.getRange(LOT_CFG.firstRow, 1, n, Math.max(c.status, cLager)).getValues();
   vals.forEach(function (r, i) {
     var item = String(r[c.item - 1]).trim(), lot = String(r[c.lot - 1]).trim();
     if (!item || !lot) return;
-    (byItem[item] = byItem[item] || []).push({
+    var lager = cLager ? String(r[cLager - 1]).trim() : '';
+    var key = LOT_key(item, lager);
+    (byItem[key] = byItem[key] || []).push({
+      item: item,
+      lager: lager,
       lot: lot,
       rest: Number(r[c.rest - 1]) || 0,
       expiry: LOT_asDate(r[c.expiry - 1]),
@@ -184,10 +197,10 @@ function LOT_runSales(rows, mode, itemChangedRows) {
     var map = LOT_headerMap(sh);
     var cItem = LOT_need(map, 'Item', sh.getName()), cQty = LOT_need(map, 'QTY', sh.getName());
     var cStatus = LOT_need(map, 'Status', sh.getName()), cLot = LOT_need(map, 'LOT', sh.getName());
-    var cDate = map['Order Date'];
+    var cDate = map['Order Date'], cLager = map[LOT_CFG.lagerHeader];
     var last = sh.getLastRow();
     if (last < LOT_CFG.firstRow) return { changed: 0, missing: 0 };
-    var width = Math.max(cItem, cQty, cStatus, cLot, cDate || 1);
+    var width = Math.max(cItem, cQty, cStatus, cLot, cDate || 1, cLager || 1);
     var data = sh.getRange(LOT_CFG.firstRow, 1, last - LOT_CFG.firstRow + 1, width).getValues();
     var shipped = LOT_shippedStatus(ss);
     var lotsByItem = LOT_loadLots(ss);
@@ -205,7 +218,7 @@ function LOT_runSales(rows, mode, itemChangedRows) {
       var v = data[r - LOT_CFG.firstRow];
       if (!v || String(v[cStatus - 1]).trim() !== shipped) return;
       var item = String(v[cItem - 1]).trim();
-      var text = LOT_processRow(lotsByItem[item], {
+      var text = LOT_processRow(lotsByItem[LOT_key(item, cLager ? v[cLager - 1] : '')], {
         qty: Number(v[cQty - 1]) || 0,
         lotText: v[cLot - 1],
         refDate: LOT_asDate(cDate ? v[cDate - 1] : null) || new Date(),
@@ -237,10 +250,10 @@ function LOT_onEdit(e) {
 
   if (name === LOT_CFG.salesSheet) {
     var map = LOT_headerMap(sh);
-    var cItem = map['Item'], cQty = map['QTY'], cStatus = map['Status'];
-    if (!(hit(cItem) || hit(cQty) || hit(cStatus))) return;
+    var cItem = map['Item'], cQty = map['QTY'], cStatus = map['Status'], cLager = map[LOT_CFG.lagerHeader];
+    if (!(hit(cItem) || hit(cQty) || hit(cStatus) || hit(cLager))) return;
     var rows = [], itemChanged = {};
-    for (var r = r0; r <= r1; r++) { rows.push(r); if (hit(cItem)) itemChanged[r] = true; }
+    for (var r = r0; r <= r1; r++) { rows.push(r); if (hit(cItem) || hit(cLager)) itemChanged[r] = true; }
     var res = LOT_runSales(rows, 'auto', itemChanged);
     if (res.missing) {
       SpreadsheetApp.getActiveSpreadsheet().toast(
@@ -285,6 +298,8 @@ function LOT_offerReceipt(sh, pm, r) {
   lsh.getRange(target, c.qty).setValue(qty);
   lsh.getRange(target, c.source).setValue('Purchase' + (id ? ' ' + id : '') + ' (Zeile ' + r + ')');
   lsh.getRange(target, c.lock).setValue('Frei');
+  var cLagerL = LOT_headerMap(lsh)[LOT_CFG.lagerHeader];
+  if (cLagerL && pm[LOT_CFG.lagerHeader]) lsh.getRange(target, cLagerL).setValue(get(LOT_CFG.lagerHeader));
   ss.setActiveSheet(lsh);
   lsh.getRange(target, c.lot).activate();
 }
@@ -331,12 +346,12 @@ function LOT_menuCheck() {
     });
   }
   var seen = {}, lots = LOT_loadLots(ss);
-  Object.keys(lots).forEach(function (item) {
-    lots[item].forEach(function (l) {
-      var k = item + '|' + l.lot;
-      if (seen[k]) msgs.push('• Doppelte LOT "' + l.lot + '" bei ' + item + ' (Zeilen ' + seen[k] + ' und ' + l.row + ')');
+  Object.keys(lots).forEach(function (key) {
+    lots[key].forEach(function (l) {
+      var k = key + '|' + l.lot, where = l.item + (l.lager ? ' (Lager ' + l.lager + ')' : '');
+      if (seen[k]) msgs.push('• Doppelte LOT "' + l.lot + '" bei ' + where + ' (Zeilen ' + seen[k] + ' und ' + l.row + ')');
       seen[k] = l.row;
-      if (l.rest < 0) msgs.push('• Negativer Restbestand: ' + item + ' / ' + l.lot + ' (' + l.rest + ')');
+      if (l.rest < 0) msgs.push('• Negativer Restbestand: ' + where + ' / ' + l.lot + ' (' + l.rest + ')');
     });
   });
   SpreadsheetApp.getUi().alert('LOT-Prüfung', msgs.length ? msgs.join('\n') : 'Alles stimmig: SKU-Bestand und LOT-Bestand passen zusammen.',

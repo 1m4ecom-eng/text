@@ -7,28 +7,31 @@
   :root { --bg:#f4f6f8; --card:#fff; --text:#1d2329; --muted:#5f6b76; --line:#d5dbe1; --accent:#1f3864; --ok:#1e7d3a; --warn:#9a6700; --err:#b42318; }
   * { box-sizing: border-box; }
   body { margin:0; background:var(--bg); color:var(--text); font:16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-  header { background:var(--accent); color:#fff; padding:12px 16px; }
-  header h1 { margin:0; font-size:18px; }
-  header small { opacity:.8; }
-  main { max-width:640px; margin:0 auto; padding:12px 16px 40px; }
-  .tabs { display:flex; gap:6px; margin:8px 0 12px; }
-  .tabs button { flex:1; padding:12px 6px; border:1px solid var(--line); background:var(--card); border-radius:8px; font-size:15px; }
+  header { background:var(--accent); color:#fff; padding:12px 16px; display:flex; align-items:center; gap:10px; }
+  header h1 { margin:0; font-size:18px; flex:1; }
+  header small { opacity:.85; display:block; font-weight:400; font-size:13px; }
+  header button { background:transparent; color:#fff; border:1px solid rgba(255,255,255,.6); border-radius:8px; padding:8px 10px; font-size:15px; }
+  main { max-width:680px; margin:0 auto; padding:12px 16px 40px; }
+  .tiles { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .tile { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px 12px; text-align:center; font-size:16px; font-weight:600; color:var(--accent); }
+  .tile span { display:block; font-size:28px; margin-bottom:6px; }
+  .tabs { display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; margin:8px 0 12px; }
+  .tabs button { padding:11px 4px; border:1px solid var(--line); background:var(--card); border-radius:8px; font-size:14px; }
   .tabs button.active { background:var(--accent); color:#fff; border-color:var(--accent); }
   .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px; margin-bottom:12px; }
   label { display:block; font-weight:600; margin:10px 0 4px; }
   label .req { color:var(--err); }
   input, select, textarea { width:100%; padding:11px 10px; font-size:16px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--text); }
   textarea { min-height:64px; resize:vertical; }
+  .row2 { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
   .hint { color:var(--muted); font-size:14px; margin-top:4px; }
   .results { border:1px solid var(--line); border-radius:8px; margin-top:4px; max-height:260px; overflow:auto; }
   .results div { padding:10px; border-bottom:1px solid var(--line); cursor:pointer; }
   .results div:last-child { border-bottom:0; }
-  .results div:hover, .results div:focus { background:#eef2f7; }
   .sel { background:#eef2f7; border-radius:8px; padding:10px; margin-top:6px; }
   table { width:100%; border-collapse:collapse; margin-top:6px; font-size:15px; }
-  th, td { text-align:left; padding:6px 4px; border-bottom:1px solid var(--line); }
-  td input { padding:6px; width:80px; }
-  .muted { color:var(--muted); }
+  th, td { text-align:left; padding:6px 4px; border-bottom:1px solid var(--line); vertical-align:top; }
+  td input { padding:6px; width:76px; }
   .btn { width:100%; padding:14px; margin-top:14px; font-size:17px; font-weight:600; border:0; border-radius:8px; background:var(--accent); color:#fff; }
   .btn.secondary { background:#fff; color:var(--accent); border:1px solid var(--accent); }
   .btn:disabled { opacity:.5; }
@@ -37,90 +40,161 @@
   .msg.warn { background:#fff4d6; color:var(--warn); }
   .msg.ok { background:#e6f4ea; color:var(--ok); }
   .msg ul { margin:4px 0 0 18px; padding:0; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+  .chip { border:1px solid var(--line); border-radius:999px; padding:3px 10px; font-size:14px; background:#f8fafc; }
+  .chip.total { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .badge { display:inline-block; border-radius:6px; padding:1px 6px; font-size:13px; }
+  .b-frei { background:#e6f4ea; color:var(--ok); } .b-bald { background:#fff4d6; color:var(--warn); }
+  .b-gesperrt, .b-abgelaufen, .b-negativ { background:#fdecea; color:var(--err); } .b-aufgebraucht { background:#eef2f7; color:var(--muted); }
+  .item-card { border-top:1px solid var(--line); padding:10px 0; }
+  .item-card:first-child { border-top:0; }
+  .linklist a { display:block; padding:12px; border:1px solid var(--line); border-radius:8px; margin-bottom:8px; color:var(--accent); text-decoration:none; font-weight:600; background:#fff; }
+  .log-entry { border-top:1px solid var(--line); padding:8px 0; font-size:15px; }
+  .log-entry:first-child { border-top:0; }
   .hidden { display:none; }
+  .toggle { display:flex; align-items:center; gap:8px; margin-top:10px; font-weight:400; }
+  .toggle input { width:auto; }
 </style>
 </head>
 <body>
-<header><h1>1M4 Logistik-Buchung</h1><small id="who">Lade …</small></header>
+<header>
+  <button id="back" class="hidden" aria-label="Zurück">←</button>
+  <h1 id="title">1M4 Logistik-Portal<small id="who">Lade …</small></h1>
+</header>
 <main>
-  <div class="card">
-    <label for="member">Mitarbeiter <span class="req">*</span></label>
-    <select id="member"><option value="">– bitte wählen –</option></select>
-  </div>
-
-  <div class="tabs" role="tablist">
-    <button data-mode="in" class="active">Wareneingang</button>
-    <button data-mode="out">Warenausgang</button>
-    <button data-mode="corr">Korrektur</button>
-  </div>
-
-  <div class="card">
-    <div id="f-ls" class="hidden">
-      <label for="lsNo">Lieferscheinnummer (LS No.) <span class="req">*</span></label>
-      <input id="lsNo" autocomplete="off">
+  <!-- Startseite -->
+  <section id="p-home">
+    <div class="tiles">
+      <button class="tile" data-go="stock"><span>📦</span>Bestand</button>
+      <button class="tile hidden" data-go="book" id="t-book"><span>✍️</span>Buchen</button>
+      <button class="tile" data-go="log"><span>🧾</span>Buchungslog</button>
+      <button class="tile hidden" data-go="admin" id="t-admin"><span>⚙️</span>Backend</button>
     </div>
-    <div id="f-type" class="hidden">
-      <label for="type">Typ <span class="req">*</span></label>
-      <select id="type"><option value="">– bitte wählen –</option></select>
+  </section>
+
+  <!-- Bestand -->
+  <section id="p-stock" class="hidden">
+    <div class="card">
+      <label for="s-q">Artikel suchen</label>
+      <input id="s-q" placeholder="Name, SKU oder EAN" autocomplete="off">
+      <label for="s-lager">Lager</label>
+      <select id="s-lager"><option value="">Alle Lager</option></select>
+      <label class="toggle"><input type="checkbox" id="s-only" checked> nur Artikel mit Bestand</label>
+      <div class="hint" id="s-info"></div>
     </div>
+    <div class="card" id="s-list"><div class="hint">Lade Bestand …</div></div>
+  </section>
 
-    <label for="search">Artikel <span class="req">*</span></label>
-    <input id="search" placeholder="Name, SKU oder EAN suchen" autocomplete="off">
-    <div id="results" class="results hidden"></div>
-    <div id="selected" class="sel hidden"></div>
-
-    <label for="qty">Menge <span class="req">*</span></label>
-    <input id="qty" type="number" inputmode="numeric" min="1" step="1">
-
-    <div id="f-in-lot">
-      <label for="lot">LOT <span class="req" id="lotReq">*</span></label>
-      <input id="lot" autocomplete="off">
-      <label for="expiry">Verfallsdatum</label>
-      <input id="expiry" type="date">
-      <label for="vendor">Lieferant</label>
-      <select id="vendor"><option value="">–</option></select>
-      <label for="ref">Quelle / Referenz</label>
-      <input id="ref" autocomplete="off">
+  <!-- Buchen -->
+  <section id="p-book" class="hidden">
+    <div class="card">
+      <div class="row2">
+        <div><label for="member">Mitarbeiter <span class="req">*</span></label>
+          <select id="member"><option value="">– wählen –</option></select></div>
+        <div><label for="lager" id="lagerLabel">Lager <span class="req">*</span></label>
+          <select id="lager"><option value="">– wählen –</option></select></div>
+      </div>
     </div>
 
-    <div id="f-out-lot" class="hidden">
-      <label>LOT (Vorschlag nach FEFO)</label>
-      <div id="lotTable" class="hint">Artikel und Menge eingeben.</div>
+    <div class="tabs" role="tablist">
+      <button data-mode="in" class="active">Eingang</button>
+      <button data-mode="out">Ausgang</button>
+      <button data-mode="corr">Korrektur</button>
+      <button data-mode="move">Umlagern</button>
     </div>
 
-    <div id="f-corr-lot" class="hidden">
-      <label for="corrLot">LOT</label>
-      <select id="corrLot"><option value="">– keine –</option></select>
+    <div class="card">
+      <div id="f-to" class="hidden">
+        <label for="toLager">Nach Lager <span class="req">*</span></label>
+        <select id="toLager"><option value="">– wählen –</option></select>
+      </div>
+      <div id="f-ls" class="hidden">
+        <label for="lsNo">Lieferscheinnummer (LS No.) <span class="req" id="lsReq">*</span></label>
+        <input id="lsNo" autocomplete="off">
+      </div>
+      <div id="f-type" class="hidden">
+        <label for="type">Typ <span class="req">*</span></label>
+        <select id="type"><option value="">– bitte wählen –</option></select>
+      </div>
+
+      <label for="search">Artikel <span class="req">*</span></label>
+      <input id="search" placeholder="Name, SKU oder EAN suchen" autocomplete="off">
+      <div id="results" class="results hidden"></div>
+      <div id="selected" class="sel hidden"></div>
+
+      <label for="qty">Menge <span class="req">*</span></label>
+      <input id="qty" type="number" inputmode="numeric" min="1" step="1">
+
+      <div id="f-in-lot">
+        <label for="lot">LOT <span class="req" id="lotReq">*</span></label>
+        <input id="lot" autocomplete="off">
+        <label for="expiry">Verfallsdatum</label>
+        <input id="expiry" type="date">
+        <label for="vendor">Lieferant</label>
+        <select id="vendor"><option value="">–</option></select>
+        <label for="ref">Quelle / Referenz</label>
+        <input id="ref" autocomplete="off">
+      </div>
+
+      <div id="f-out-lot" class="hidden">
+        <label id="lotTableLabel">LOT (Vorschlag nach FEFO)</label>
+        <div id="lotTable" class="hint">Lager, Artikel und Menge eingeben.</div>
+      </div>
+
+      <div id="f-corr-lot" class="hidden">
+        <label for="corrLot">LOT</label>
+        <select id="corrLot"><option value="">– keine –</option></select>
+      </div>
+
+      <label for="notes" id="notesLabel">Notizen</label>
+      <textarea id="notes"></textarea>
+
+      <div id="msg"></div>
+      <button class="btn" id="submit">Buchen</button>
+      <button class="btn secondary hidden" id="confirm">Trotzdem buchen</button>
     </div>
+    <div id="done" class="card hidden"></div>
+  </section>
 
-    <label for="notes" id="notesLabel">Notizen</label>
-    <textarea id="notes"></textarea>
+  <!-- Buchungslog -->
+  <section id="p-log" class="hidden">
+    <div class="card">
+      <input id="l-q" placeholder="Filtern (Artikel, LOT, LS-Nr., Mitarbeiter …)" autocomplete="off">
+      <div class="hint">Die letzten 50 Buchungen, neueste zuerst.</div>
+    </div>
+    <div class="card" id="l-list"><div class="hint">Lade …</div></div>
+  </section>
 
-    <div id="msg"></div>
-    <button class="btn" id="submit">Buchen</button>
-    <button class="btn secondary hidden" id="confirm">Trotzdem buchen</button>
-  </div>
+  <!-- Backend -->
+  <section id="p-admin" class="hidden">
+    <div class="card linklist" id="a-links"></div>
+  </section>
 
-  <div id="done" class="card hidden"></div>
+  <div id="gmsg"></div>
 </main>
 
 <script>
-var S = { mode: 'in', items: [], item: null, details: null, previewTimer: null, busy: false };
+var S = { init: null, page: 'home', mode: 'in', item: null, details: null, previewTimer: null, busy: false, stock: null, log: null };
 var $ = function (id) { return document.getElementById(id); };
+var TITLES = { home: '1M4 Logistik-Portal', stock: 'Bestand', book: 'Buchen', log: 'Buchungslog', admin: 'Backend' };
+var STATE = { frei: 'frei', bald: 'läuft bald ab', gesperrt: 'gesperrt', abgelaufen: 'abgelaufen', aufgebraucht: 'aufgebraucht', negativ: 'negativ – prüfen' };
 
 function el(tag, text, cls) { var e = document.createElement(tag); if (text !== undefined) e.textContent = text; if (cls) e.className = cls; return e; }
 function opt(sel, value, label) { var o = el('option', label || value); o.value = value; sel.appendChild(o); }
 function store(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
 function load(k) { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } }
+function badge(state) { return el('span', STATE[state] || state, 'badge b-' + state); }
 
-function call(fn, arg) {
+function call(fn) {
+  var args = Array.prototype.slice.call(arguments, 1);
   return new Promise(function (res, rej) {
-    google.script.run.withSuccessHandler(res).withFailureHandler(function (e) { rej(e && e.message ? e.message : String(e)); })[fn](arg);
+    var r = google.script.run.withSuccessHandler(res).withFailureHandler(function (e) { rej(e && e.message ? e.message : String(e)); });
+    r[fn].apply(r, args);
   });
 }
 
-function showMsg(errors, warnings, ok) {
-  var box = $('msg'); box.innerHTML = '';
+function msgBox(box, errors, warnings, ok) {
+  box.innerHTML = '';
   function block(list, cls, title) {
     if (!list || !list.length) return;
     var d = el('div', undefined, 'msg ' + cls); if (title) d.appendChild(el('strong', title));
@@ -130,32 +204,114 @@ function showMsg(errors, warnings, ok) {
   block(warnings, 'warn', 'Achtung:');
   if (ok) box.appendChild(el('div', ok, 'msg ok'));
 }
+function showMsg(e, w, ok) { msgBox($('msg'), e, w, ok); }
 
+/* Navigation */
+function go(page) {
+  S.page = page;
+  ['home', 'stock', 'book', 'log', 'admin'].forEach(function (p) { $('p-' + p).classList.toggle('hidden', p !== page); });
+  $('back').classList.toggle('hidden', page === 'home');
+  $('title').firstChild.textContent = TITLES[page];
+  msgBox($('gmsg'));
+  if (page === 'stock') loadStock();
+  if (page === 'log') loadLog();
+  window.scrollTo(0, 0);
+}
+
+/* ---------- Bestand ---------- */
+function loadStock() {
+  $('s-list').innerHTML = ''; $('s-list').appendChild(el('div', 'Lade Bestand …', 'hint'));
+  call('getStockOverview').then(function (d) { S.stock = d; renderStock(); })
+    .catch(function (e) { $('s-list').innerHTML = ''; msgBox($('s-list'), [e]); });
+}
+
+function renderStock() {
+  var d = S.stock; if (!d) return;
+  var q = $('s-q').value.trim().toLowerCase(), lager = $('s-lager').value, only = $('s-only').checked;
+  var list = d.items.filter(function (i) {
+    if (q.length >= 2 && !(i.item.toLowerCase().indexOf(q) !== -1 || i.sku.toLowerCase().indexOf(q) !== -1 || (i.ean && i.ean.indexOf(q) !== -1))) return false;
+    var qty = lager ? (i.byLager[lager] || 0) : i.total;
+    return !only || qty !== 0;
+  });
+  $('s-info').textContent = list.length + ' Artikel · Stand ' + d.stand + ' · Warnung ' + d.warnDays + ' Tage vor Ablauf';
+  var box = $('s-list'); box.innerHTML = '';
+  if (!list.length) { box.appendChild(el('div', q ? 'Kein Treffer.' : 'Keine Artikel mit Bestand.', 'hint')); return; }
+  list.slice(0, 100).forEach(function (i) {
+    var c = el('div', undefined, 'item-card');
+    c.appendChild(el('div', i.item));
+    c.appendChild(el('div', 'SKU ' + i.sku + (i.ean ? ' · EAN ' + i.ean : '') + (i.type ? ' · ' + i.type : ''), 'hint'));
+    var chips = el('div', undefined, 'chips');
+    d.lagers.forEach(function (l) { if (!lager || l === lager) chips.appendChild(el('span', l + ': ' + (i.byLager[l] || 0), 'chip')); });
+    chips.appendChild(el('span', 'Gesamt: ' + i.total, 'chip total'));
+    c.appendChild(chips);
+    var lots = i.lots.filter(function (l) { return !lager || l.lager === lager; });
+    if (lots.length) {
+      var t = el('table'), h = el('tr');
+      ['LOT', 'Lager', 'Rest', 'Verfall', 'Status'].forEach(function (x) { h.appendChild(el('th', x)); }); t.appendChild(h);
+      lots.forEach(function (l) {
+        var tr = el('tr');
+        [l.lot, l.lager || '–', String(l.rest), l.expiry || '–'].forEach(function (x) { tr.appendChild(el('td', x)); });
+        var td = el('td'); td.appendChild(badge(l.state)); tr.appendChild(td); t.appendChild(tr);
+      });
+      c.appendChild(t);
+    }
+    box.appendChild(c);
+  });
+  if (list.length > 100) box.appendChild(el('div', 'Weitere ' + (list.length - 100) + ' Artikel – Suche verfeinern.', 'hint'));
+}
+
+/* ---------- Buchungslog ---------- */
+function loadLog() {
+  $('l-list').innerHTML = ''; $('l-list').appendChild(el('div', 'Lade …', 'hint'));
+  call('getLog').then(function (d) { S.log = d; renderLog(); })
+    .catch(function (e) { $('l-list').innerHTML = ''; msgBox($('l-list'), [e]); });
+}
+
+function renderLog() {
+  var q = $('l-q').value.trim().toLowerCase(), box = $('l-list'); box.innerHTML = '';
+  var list = (S.log || []).filter(function (r) { return !q || JSON.stringify(r).toLowerCase().indexOf(q) !== -1; });
+  if (!list.length) { box.appendChild(el('div', 'Keine Einträge.', 'hint')); return; }
+  list.forEach(function (r) {
+    var e = el('div', undefined, 'log-entry');
+    e.appendChild(el('div', r.ts + ' · ' + r.kind + ' · ' + r.member));
+    e.appendChild(el('div', r.item + ' (SKU ' + r.sku + ') · Menge ' + r.qty, 'hint'));
+    var extra = [r.lager ? 'Lager ' + r.lager : '', r.lot ? 'LOT ' + r.lot : '', r.lsNo ? 'LS ' + r.lsNo : '', r.id].filter(String).join(' · ');
+    e.appendChild(el('div', extra, 'hint'));
+    if (r.note) e.appendChild(el('div', r.note, 'hint'));
+    box.appendChild(e);
+  });
+}
+
+/* ---------- Buchen ---------- */
 function setMode(m) {
   S.mode = m;
   document.querySelectorAll('.tabs button').forEach(function (b) { b.classList.toggle('active', b.dataset.mode === m); });
-  $('f-ls').classList.toggle('hidden', m !== 'out');
+  $('f-ls').classList.toggle('hidden', m !== 'out' && m !== 'move');
+  $('lsReq').classList.toggle('hidden', m !== 'out');
+  $('f-to').classList.toggle('hidden', m !== 'move');
   $('f-type').classList.toggle('hidden', m !== 'corr');
   $('f-in-lot').classList.toggle('hidden', m !== 'in');
-  $('f-out-lot').classList.toggle('hidden', m !== 'out');
+  $('f-out-lot').classList.toggle('hidden', m !== 'out' && m !== 'move');
   $('f-corr-lot').classList.toggle('hidden', m !== 'corr');
+  $('lagerLabel').innerHTML = (m === 'move' ? 'Von Lager' : 'Lager') + ' <span class="req">*</span>';
+  $('lotTableLabel').textContent = m === 'move' ? 'LOT aus dem Quelllager (Vorschlag nach FEFO)' : 'LOT (Vorschlag nach FEFO)';
   $('notesLabel').innerHTML = m === 'corr' ? 'Begründung / Notiz <span class="req">*</span>' : 'Notizen';
-  $('submit').textContent = { in: 'Wareneingang buchen', out: 'Warenausgang buchen', corr: 'Korrektur buchen' }[m];
+  $('submit').textContent = { in: 'Wareneingang buchen', out: 'Warenausgang buchen', corr: 'Korrektur buchen', move: 'Umlagerung buchen' }[m];
+  $('lotTable').textContent = 'Lager, Artikel und Menge eingeben.';
   resetConfirm(); showMsg();
-  renderDetails();
+  refreshDetails();
 }
 
 function resetConfirm() { $('confirm').classList.add('hidden'); }
 
-/* Artikelsuche */
 function search() {
   var q = $('search').value.trim().toLowerCase(), box = $('results');
   box.innerHTML = '';
   if (q.length < 2) { box.classList.add('hidden'); return; }
-  var hits = S.items.filter(function (i) {
+  var hits = S.init.items.filter(function (i) {
     return i.item.toLowerCase().indexOf(q) !== -1 || i.sku.toLowerCase().indexOf(q) !== -1 || (i.ean && i.ean.indexOf(q) !== -1);
   }).slice(0, 25);
-  if (!hits.length) box.appendChild(el('div', 'Kein Treffer', 'muted'));
+  if (!hits.length) box.appendChild(el('div', 'Kein Treffer', 'hint'));
   hits.forEach(function (i) {
     var d = el('div'); d.tabIndex = 0;
     d.appendChild(el('div', i.item));
@@ -173,58 +329,70 @@ function pick(i) {
   var vs = $('vendor');
   if (i.vendor && !Array.prototype.some.call(vs.options, function (o) { return o.value === i.vendor; })) opt(vs, i.vendor);
   vs.value = i.vendor || '';
-  renderDetails();
-  call('getItemDetails', i.item).then(function (d) { if (S.item && S.item.item === d.item) { S.details = d; renderDetails(); preview(); } })
-    .catch(function (e) { showMsg([e]); });
+  refreshDetails();
+}
+
+/** Lädt Bestand/LOTs für Artikel + (Quell-)Lager neu. */
+function refreshDetails() {
+  S.details = null; renderDetails();
+  var lager = $('lager').value;
+  if (!S.item || !lager) return;
+  var item = S.item.item;
+  call('getItemDetails', item, lager).then(function (d) {
+    if (S.item && S.item.item === d.item && $('lager').value === d.lager) { S.details = d; renderDetails(); preview(); }
+  }).catch(function (e) { showMsg([e]); });
 }
 
 function renderDetails() {
-  var box = $('selected');
+  var box = $('selected'), cs = $('corrLot');
+  cs.innerHTML = ''; opt(cs, '', '– keine –');
   if (!S.item) { box.classList.add('hidden'); return; }
   box.innerHTML = ''; box.classList.remove('hidden');
   box.appendChild(el('div', S.item.item));
-  var d = S.details;
-  box.appendChild(el('div', 'SKU ' + S.item.sku + (d ? ' · Bestand: ' + (d.stock === null ? '–' : d.stock) : ' · lade …') +
-    (S.item.lotRequired ? '' : ' · ohne LOT-Pflicht'), 'hint'));
+  var d = S.details, lager = $('lager').value;
+  var info = 'SKU ' + S.item.sku;
+  if (!lager) info += ' · bitte Lager wählen';
+  else info += d ? ' · Bestand ' + lager + ': ' + d.stock + ' (gesamt ' + d.total + ')' : ' · lade …';
+  if (!S.item.lotRequired) info += ' · ohne LOT-Pflicht';
+  box.appendChild(el('div', info, 'hint'));
   $('lotReq').classList.toggle('hidden', !S.item.lotRequired);
-  if (d && S.mode === 'in' && d.lots.length) {
-    box.appendChild(el('div', 'Vorhandene LOTs: ' + d.lots.map(function (l) { return l.lot; }).join(', '), 'hint'));
-  }
-  var cs = $('corrLot'); cs.innerHTML = ''; opt(cs, '', '– keine –');
-  if (d) d.lots.forEach(function (l) { opt(cs, l.lot, l.lot + ' · Rest ' + l.rest + (l.expiry ? ' · Verfall ' + l.expiry : '') + ' · ' + l.status); });
+  if (d && S.mode === 'in' && d.lots.length) box.appendChild(el('div', 'LOTs in diesem Lager: ' + d.lots.map(function (l) { return l.lot; }).join(', '), 'hint'));
+  if (d) d.lots.forEach(function (l) { opt(cs, l.lot, l.lot + ' · Rest ' + l.rest + (l.expiry ? ' · Verfall ' + l.expiry : '') + ' · ' + (STATE[l.state] || l.state)); });
 }
 
-/* Warenausgang: FEFO-Vorschlag */
 function preview() {
-  if (S.mode !== 'out') return;
+  if (S.mode !== 'out' && S.mode !== 'move') return;
   clearTimeout(S.previewTimer);
   S.previewTimer = setTimeout(function () {
     var qty = Number($('qty').value);
-    if (!S.item || !(qty > 0)) { $('lotTable').textContent = 'Artikel und Menge eingeben.'; return; }
-    call('previewShipment', { member: $('member').value, lsNo: $('lsNo').value || '-', item: S.item.item, qty: qty })
-      .then(function (p) { renderLotTable(p); }).catch(function (e) { showMsg([e]); });
+    if (!S.item || !(qty > 0) || !$('lager').value) { $('lotTable').textContent = 'Lager, Artikel und Menge eingeben.'; return; }
+    var p = payload(false); p.parts = null;
+    call(S.mode === 'out' ? 'previewShipment' : 'previewTransfer', p)
+      .then(function (r) { renderLotTable(r); }).catch(function (e) { showMsg([e]); });
   }, 300);
 }
 
 function renderLotTable(p) {
   var box = $('lotTable'); box.innerHTML = '';
-  var lots = (S.details && S.details.lots || []).filter(function (l) { return l.selectable; });
+  var all = (S.details && S.details.lots || []).filter(function (l) { return l.rest > 0; });
+  var lots = S.mode === 'move' ? all : all.filter(function (l) { return l.selectable; });
   if (!lots.length) {
-    box.appendChild(el('div', S.item && S.item.lotRequired ? 'Keine freie LOT verfügbar (gesperrte und abgelaufene LOTs sind ausgeschlossen).' : 'Keine LOT nötig.', 'hint'));
-    if (p.lotText) box.appendChild(el('div', 'Buchung: ' + p.lotText, 'hint'));
+    box.appendChild(el('div', S.item && S.item.lotRequired ? 'Keine passende LOT in diesem Lager (gesperrte und abgelaufene LOTs sind beim Ausgang ausgeschlossen).' : 'Keine LOT nötig.', 'hint'));
     return;
   }
   var sug = {}; (p.suggestion ? p.suggestion.parts : []).forEach(function (x) { sug[x.lot] = x.qty; });
   var t = el('table'), h = el('tr');
   ['LOT', 'Verfall', 'Rest', 'Menge'].forEach(function (x) { h.appendChild(el('th', x)); }); t.appendChild(h);
   lots.forEach(function (l) {
-    var tr = el('tr'); tr.appendChild(el('td', l.lot)); tr.appendChild(el('td', l.expiry || '–')); tr.appendChild(el('td', String(l.rest)));
+    var tr = el('tr'), td0 = el('td', l.lot);
+    if (!l.selectable) { td0.appendChild(el('br')); td0.appendChild(badge(l.state)); }
+    tr.appendChild(td0); tr.appendChild(el('td', l.expiry || '–')); tr.appendChild(el('td', String(l.rest)));
     var td = el('td'), inp = el('input'); inp.type = 'number'; inp.min = '0'; inp.step = '1'; inp.inputMode = 'numeric';
     inp.dataset.lot = l.lot; inp.value = sug[l.lot] || ''; inp.oninput = resetConfirm;
     td.appendChild(inp); tr.appendChild(td); t.appendChild(tr);
   });
   box.appendChild(t);
-  if (p.suggestion && p.suggestion.missing) box.appendChild(el('div', p.suggestion.missing + ' Stk. ohne freie LOT → "OHNE LOT"', 'hint'));
+  if (p.suggestion && p.suggestion.missing) box.appendChild(el('div', p.suggestion.missing + ' Stk. ohne passende LOT' + (S.mode === 'out' ? ' → "OHNE LOT"' : ' → ohne LOT umgelagert'), 'hint'));
   if (p.warnings && p.warnings.length) showMsg([], p.warnings);
 }
 
@@ -234,37 +402,36 @@ function lotParts() {
   return parts;
 }
 
-/* Buchen */
 function payload(confirm) {
-  var base = { member: $('member').value, item: S.item ? S.item.item : '', qty: Number($('qty').value), notes: $('notes').value, confirm: !!confirm };
+  var base = { member: $('member').value, lager: $('lager').value, item: S.item ? S.item.item : '', qty: Number($('qty').value), notes: $('notes').value, confirm: !!confirm };
   if (S.mode === 'in') { base.lot = $('lot').value; base.expiry = $('expiry').value; base.vendor = $('vendor').value; base.ref = $('ref').value; }
-  if (S.mode === 'out') {
-    base.lsNo = $('lsNo').value;
-    base.parts = lotParts(); // leer = FEFO-Vorschlag des Servers
-  }
+  if (S.mode === 'out') { base.lsNo = $('lsNo').value; base.parts = lotParts(); }
   if (S.mode === 'corr') { base.type = $('type').value; base.lot = $('corrLot').value; }
+  if (S.mode === 'move') { base.from = base.lager; base.to = $('toLager').value; base.lsNo = $('lsNo').value; base.parts = lotParts(); }
   return base;
 }
 
 function clientCheck(p) {
   var e = [];
   if (!p.member) e.push('Bitte Mitarbeiter auswählen.');
+  if (!p.lager) e.push(S.mode === 'move' ? 'Bitte Quelllager auswählen.' : 'Bitte Lager auswählen.');
   if (!S.item) e.push('Bitte einen Artikel aus der Liste wählen.');
   if (!(p.qty > 0) || Math.floor(p.qty) !== p.qty) e.push('Menge muss eine ganze Zahl größer 0 sein.');
   if (S.mode === 'in' && S.item && S.item.lotRequired && !p.lot.trim()) e.push('LOT ist für diesen Artikel Pflicht.');
   if (S.mode === 'out' && !p.lsNo.trim()) e.push('Lieferscheinnummer (LS No.) ist Pflicht.');
   if (S.mode === 'corr' && !p.type) e.push('Bitte Korrekturtyp (+/−) auswählen.');
   if (S.mode === 'corr' && !p.notes.trim()) e.push('Begründung ist Pflicht.');
+  if (S.mode === 'move' && !p.to) e.push('Bitte Ziellager auswählen.');
+  if (S.mode === 'move' && p.to && p.to === p.from) e.push('Quell- und Ziellager müssen verschieden sein.');
   return e;
 }
 
 function submit(confirm) {
   if (S.busy) return;
-  var p = payload(confirm);
-  var e = clientCheck(p);
+  var p = payload(confirm), e = clientCheck(p);
   if (e.length) { showMsg(e); return; }
-  var fn = { in: 'bookReceipt', out: 'bookShipment', corr: 'bookCorrection' }[S.mode];
-  S.busy = true; $('submit').disabled = true; $('confirm').disabled = true; showMsg([], [], 'Buche …');
+  var fn = { in: 'bookReceipt', out: 'bookShipment', corr: 'bookCorrection', move: 'bookTransfer' }[S.mode];
+  S.busy = true; $('submit').disabled = true; $('confirm').disabled = true; showMsg([], [], 'Buche … (kann einige Sekunden dauern)');
   call(fn, p).then(function (r) {
     if (r.errors && r.errors.length) { showMsg(r.errors, r.warnings); resetConfirm(); return; }
     if (r.needsConfirm) { showMsg([], r.warnings); $('confirm').classList.remove('hidden'); return; }
@@ -278,30 +445,47 @@ function done(r) {
   var d = el('div', undefined, 'msg ok'); d.appendChild(el('strong', r.summary[0]));
   var ul = el('ul'); r.summary.slice(1).forEach(function (t) { ul.appendChild(el('li', t)); }); d.appendChild(ul); box.appendChild(d);
   ['lsNo', 'search', 'qty', 'lot', 'expiry', 'ref', 'notes'].forEach(function (id) { $(id).value = ''; });
-  $('type').value = ''; $('vendor').value = '';
-  S.item = null; S.details = null; renderDetails(); $('lotTable').textContent = 'Artikel und Menge eingeben.';
-  resetConfirm(); showMsg();
+  $('type').value = ''; $('vendor').value = ''; $('toLager').value = '';
+  S.item = null; S.details = null; renderDetails(); $('lotTable').textContent = 'Lager, Artikel und Menge eingeben.';
+  resetConfirm(); showMsg(); S.stock = null;
   box.scrollIntoView({ behavior: 'smooth' });
 }
 
-/* Start */
+/* ---------- Start ---------- */
+document.querySelectorAll('[data-go]').forEach(function (b) { b.onclick = function () { go(b.dataset.go); }; });
+$('back').onclick = function () { go('home'); };
+$('s-q').oninput = renderStock; $('s-lager').onchange = renderStock; $('s-only').onchange = renderStock;
+$('l-q').oninput = renderLog;
 document.querySelectorAll('.tabs button').forEach(function (b) { b.onclick = function () { setMode(b.dataset.mode); }; });
 $('search').oninput = function () { S.item = null; S.details = null; renderDetails(); search(); resetConfirm(); };
 $('qty').oninput = function () { resetConfirm(); preview(); };
 ['lsNo', 'lot', 'expiry', 'ref', 'notes', 'type', 'corrLot', 'vendor'].forEach(function (id) { $(id).addEventListener('input', resetConfirm); });
+$('toLager').onchange = function () { resetConfirm(); preview(); };
 $('member').onchange = function () { store('lb_member', $('member').value); };
+$('lager').onchange = function () { store('lb_lager', $('lager').value); resetConfirm(); refreshDetails(); };
 $('submit').onclick = function () { submit(false); };
 $('confirm').onclick = function () { submit(true); };
 
 call('getInitData').then(function (d) {
-  S.items = d.items;
-  $('who').textContent = 'Angemeldet: ' + d.email;
-  d.members.forEach(function (m) { opt($('member'), m); });
-  var last = load('lb_member'); if (d.members.indexOf(last) !== -1) $('member').value = last;
-  d.vendors.forEach(function (v) { opt($('vendor'), v); });
-  d.types.forEach(function (t) { opt($('type'), t.name, t.label); });
-  setMode('in');
-}).catch(function (e) { $('who').textContent = ''; showMsg([e]); $('submit').disabled = true; });
+  S.init = d;
+  $('who').textContent = d.email + ' · Rolle: ' + ({ admin: 'Admin', book: 'Buchen', view: 'Ansehen' }[d.role] || d.role);
+  d.lagers.forEach(function (l) { opt($('s-lager'), l); opt($('lager'), l); opt($('toLager'), l); });
+  var bookable = d.role === 'book' || d.role === 'admin';
+  $('t-book').classList.toggle('hidden', !bookable);
+  $('t-admin').classList.toggle('hidden', d.role !== 'admin');
+  if (bookable) {
+    d.members.forEach(function (m) { opt($('member'), m); });
+    var lm = load('lb_member'); if (d.members.indexOf(lm) !== -1) $('member').value = lm;
+    var ll = load('lb_lager'); if (d.lagers.indexOf(ll) !== -1) $('lager').value = ll;
+    d.vendors.forEach(function (v) { opt($('vendor'), v); });
+    d.types.forEach(function (t) { opt($('type'), t.name, t.label); });
+    if (!d.transferReady) document.querySelector('.tabs button[data-mode=move]').disabled = true;
+    setMode('in');
+  }
+  var links = $('a-links'); links.innerHTML = '';
+  if (!d.links.length) links.appendChild(el('div', 'Keine Links hinterlegt (Skripteigenschaft ADMIN_LINKS).', 'hint'));
+  d.links.forEach(function (l) { var a = el('a', l.label); a.href = l.url; a.target = '_blank'; a.rel = 'noopener'; links.appendChild(a); });
+}).catch(function (e) { $('who').textContent = ''; msgBox($('gmsg'), [e]); });
 </script>
 </body>
 </html>
