@@ -19,9 +19,12 @@
 1. TEST-Tabelle → Erweiterungen → Apps Script. Prüfen, dass das Projekt die Dateien `Code.gs` und `LotTracking.gs` enthält (Projektname notieren).
    Falls KEIN Skript vorhanden ist: STOPP, im Protokoll vermerken.
 2. Projekteinstellungen → Zeitzone auf **(GMT+02:00/+03:00) Osteuropäische Zeit – Helsinki** stellen, speichern.
-3. Neue Skriptdatei `Bestand_Extern` anlegen, Inhalt 1:1 aus `sheetify-erweiterung\Bestand_Extern.gs` einfügen, speichern.
-   (Noch NICHT ausführen – die externe Test-Datei ist noch nicht freigegeben.)
-4. Trigger der TEST-Kopie: In der Trigger-Liste prüfen, ob Trigger existieren (Kopien übernehmen keine Trigger). `LOT_install` NICHT ausführen – die Tests sollen ohne die manuellen onEdit-Trigger laufen.
+3. Neue Skriptdateien `Bestand_Extern` und `Schutz_Setup` anlegen, Inhalt 1:1 aus `sheetify-erweiterung\Bestand_Extern.gs` bzw. `Schutz_Setup.gs` einfügen, speichern.
+4. Projekteinstellungen → Skripteigenschaften: `BE_EXTERNAL_ID` = `16ZBRmWUyimB615UFwalt9nawDhbKpsafRi-XdKPA3kU`
+   (externe Testdatei „1M4 Bestand extern – TEST“, Ordner „1M4 Inventory“).
+5. Funktion `SCHUTZ_setup` auswählen → Ausführen (Autorisierung als 1m4.ecom bestätigen). Erwartet: Toast „… Schutzbereiche (nur Warnung) gesetzt“. In der Tabelle unter Daten → Geschützte Tabellenblätter und Bereiche prüfen.
+6. Funktion `BE_install` ausführen. Erwartet: zwei Zeittrigger (BE_refresh stündlich, BE_checkPending alle 10 Minuten) und die externe Testdatei enthält Tab „Bestand“ mit „Stand: …“, Spalten Artikelnummer (SKU) / EAN / Produktname / Bestand.
+7. Trigger der TEST-Kopie: In der Trigger-Liste prüfen, dass nur die beiden BE-Trigger existieren (Kopien übernehmen keine Trigger). `LOT_install` NICHT ausführen – die Tests sollen ohne die manuellen onEdit-Trigger laufen.
 
 ## Schritt 2 – Neues Projekt „1M4 Logistik Buchung“
 1. https://script.google.com → Neues Projekt → Name „1M4 Logistik Buchung“.
@@ -55,6 +58,11 @@ Für jeden Fall: Eingaben, Ergebnis im Formular, betroffene Zeilen in der Tabell
 8. **Gleichzeitige Buchungen:** Web-App in zwei Fenstern öffnen (zweites Fenster gleiches Konto genügt), in beiden einen Warenausgang vorbereiten und möglichst gleichzeitig „Buchen“ klicken. Erwartet: beide Buchungen in eigenen Zeilen, keine überschriebenen Werte, zwei Log-Einträge.
 9. **Zugriffsschutz:** Web-App-URL in einem Inkognito-Fenster mit einem NICHT gelisteten Google-Konto öffnen (falls verfügbar) → „Kein Zugriff“. Sonst als „nicht getestet“ notieren.
 10. **Kontrolle:** Menü „🏷️ LOT“ → „Prüfung: SKU-Bestand vs. LOT-Bestand“ ausführen (nur Anzeige) und Ergebnis notieren.
+11. **Externer Bestand:** Im Skripteditor der TEST-Kopie `BE_refresh` ausführen (oder 10 Minuten nach der letzten Buchung warten). In „1M4 Bestand extern – TEST“ prüfen:
+    - „Stand:“ aktuell; keine Materialien (z. B. 80004.01), keine 8000x-Bauteile, kein EH 157 / EH 193 / 12000.99; ML Cards enthalten; Artikel mit EAN „n/a“ haben leere EAN.
+    - Bestand „1m4 Keyboard Cover“ = Stock On Hand minus Restbestand von `T-GESP` und `T-ALT`.
+    - Keine LOT-Details, Preise, Lieferanten oder Notizen sichtbar; Formeln/IMPORTRANGE: keine (Zellen enthalten reine Werte).
+12. **Schutz-Warnung:** In der TEST-Tabelle von Hand in Sales Spalte „SKU“ einer leeren Zeile tippen → Warnhinweis muss erscheinen → „Abbrechen“. Danach erneut eine Formularbuchung (Warenausgang) → muss ohne Fehler durchlaufen.
 
 ## Ergebnis
 `Phase2_Testprotokoll.md` mit: Web-App-URL, angeforderte Berechtigungen, je Testfall Soll/Ist/OK-NOK, Fehlermeldungen wörtlich, Zeilennummern, Screenshot-Dateinamen. Danach STOPP.
