@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<style>
+  :root { --bg:#f4f6f8; --card:#fff; --text:#1d2329; --muted:#5f6b76; --line:#d5dbe1; --accent:#1f3864; --ok:#1e7d3a; --warn:#9a6700; --err:#b42318; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { background:var(--accent); color:#fff; padding:12px 16px; }
+  header h1 { margin:0; font-size:18px; }
+  header small { opacity:.8; }
+  main { max-width:640px; margin:0 auto; padding:12px 16px 40px; }
+  .tabs { display:flex; gap:6px; margin:8px 0 12px; }
+  .tabs button { flex:1; padding:12px 6px; border:1px solid var(--line); background:var(--card); border-radius:8px; font-size:15px; }
+  .tabs button.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px; margin-bottom:12px; }
+  label { display:block; font-weight:600; margin:10px 0 4px; }
+  label .req { color:var(--err); }
+  input, select, textarea { width:100%; padding:11px 10px; font-size:16px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--text); }
+  textarea { min-height:64px; resize:vertical; }
+  .hint { color:var(--muted); font-size:14px; margin-top:4px; }
+  .results { border:1px solid var(--line); border-radius:8px; margin-top:4px; max-height:260px; overflow:auto; }
+  .results div { padding:10px; border-bottom:1px solid var(--line); cursor:pointer; }
+  .results div:last-child { border-bottom:0; }
+  .results div:hover, .results div:focus { background:#eef2f7; }
+  .sel { background:#eef2f7; border-radius:8px; padding:10px; margin-top:6px; }
+  table { width:100%; border-collapse:collapse; margin-top:6px; font-size:15px; }
+  th, td { text-align:left; padding:6px 4px; border-bottom:1px solid var(--line); }
+  td input { padding:6px; width:80px; }
+  .muted { color:var(--muted); }
+  .btn { width:100%; padding:14px; margin-top:14px; font-size:17px; font-weight:600; border:0; border-radius:8px; background:var(--accent); color:#fff; }
+  .btn.secondary { background:#fff; color:var(--accent); border:1px solid var(--accent); }
+  .btn:disabled { opacity:.5; }
+  .msg { border-radius:8px; padding:10px 12px; margin-top:10px; }
+  .msg.err { background:#fdecea; color:var(--err); }
+  .msg.warn { background:#fff4d6; color:var(--warn); }
+  .msg.ok { background:#e6f4ea; color:var(--ok); }
+  .msg ul { margin:4px 0 0 18px; padding:0; }
+  .hidden { display:none; }
+</style>
+</head>
+<body>
+<header><h1>1M4 Logistik-Buchung</h1><small id="who">Lade …</small></header>
+<main>
+  <div class="card">
+    <label for="member">Mitarbeiter <span class="req">*</span></label>
+    <select id="member"><option value="">– bitte wählen –</option></select>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button data-mode="in" class="active">Wareneingang</button>
+    <button data-mode="out">Warenausgang</button>
+    <button data-mode="corr">Korrektur</button>
+  </div>
+
+  <div class="card">
+    <div id="f-ls" class="hidden">
+      <label for="lsNo">Lieferscheinnummer (LS No.) <span class="req">*</span></label>
+      <input id="lsNo" autocomplete="off">
+    </div>
+    <div id="f-type" class="hidden">
+      <label for="type">Typ <span class="req">*</span></label>
+      <select id="type"><option value="">– bitte wählen –</option></select>
+    </div>
+
+    <label for="search">Artikel <span class="req">*</span></label>
+    <input id="search" placeholder="Name, SKU oder EAN suchen" autocomplete="off">
+    <div id="results" class="results hidden"></div>
+    <div id="selected" class="sel hidden"></div>
+
+    <label for="qty">Menge <span class="req">*</span></label>
+    <input id="qty" type="number" inputmode="numeric" min="1" step="1">
+
+    <div id="f-in-lot">
+      <label for="lot">LOT <span class="req" id="lotReq">*</span></label>
+      <input id="lot" autocomplete="off">
+      <label for="expiry">Verfallsdatum</label>
+      <input id="expiry" type="date">
+      <label for="vendor">Lieferant</label>
+      <select id="vendor"><option value="">–</option></select>
+      <label for="ref">Quelle / Referenz</label>
+      <input id="ref" autocomplete="off">
+    </div>
+
+    <div id="f-out-lot" class="hidden">
+      <label>LOT (Vorschlag nach FEFO)</label>
+      <div id="lotTable" class="hint">Artikel und Menge eingeben.</div>
+    </div>
+
+    <div id="f-corr-lot" class="hidden">
+      <label for="corrLot">LOT</label>
+      <select id="corrLot"><option value="">– keine –</option></select>
+    </div>
+
+    <label for="notes" id="notesLabel">Notizen</label>
+    <textarea id="notes"></textarea>
+
+    <div id="msg"></div>
+    <button class="btn" id="submit">Buchen</button>
+    <button class="btn secondary hidden" id="confirm">Trotzdem buchen</button>
+  </div>
+
+  <div id="done" class="card hidden"></div>
+</main>
+
+<script>
+var S = { mode: 'in', items: [], item: null, details: null, previewTimer: null, busy: false };
+var $ = function (id) { return document.getElementById(id); };
+
+function el(tag, text, cls) { var e = document.createElement(tag); if (text !== undefined) e.textContent = text; if (cls) e.className = cls; return e; }
+function opt(sel, value, label) { var o = el('option', label || value); o.value = value; sel.appendChild(o); }
+function store(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+function load(k) { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } }
+
+function call(fn, arg) {
+  return new Promise(function (res, rej) {
+    google.script.run.withSuccessHandler(res).withFailureHandler(function (e) { rej(e && e.message ? e.message : String(e)); })[fn](arg);
+  });
+}
+
+function showMsg(errors, warnings, ok) {
+  var box = $('msg'); box.innerHTML = '';
+  function block(list, cls, title) {
+    if (!list || !list.length) return;
+    var d = el('div', undefined, 'msg ' + cls); if (title) d.appendChild(el('strong', title));
+    var ul = el('ul'); list.forEach(function (t) { ul.appendChild(el('li', t)); }); d.appendChild(ul); box.appendChild(d);
+  }
+  block(errors, 'err', 'Bitte korrigieren:');
+  block(warnings, 'warn', 'Achtung:');
+  if (ok) box.appendChild(el('div', ok, 'msg ok'));
+}
+
+function setMode(m) {
+  S.mode = m;
+  document.querySelectorAll('.tabs button').forEach(function (b) { b.classList.toggle('active', b.dataset.mode === m); });
+  $('f-ls').classList.toggle('hidden', m !== 'out');
+  $('f-type').classList.toggle('hidden', m !== 'corr');
+  $('f-in-lot').classList.toggle('hidden', m !== 'in');
+  $('f-out-lot').classList.toggle('hidden', m !== 'out');
+  $('f-corr-lot').classList.toggle('hidden', m !== 'corr');
+  $('notesLabel').innerHTML = m === 'corr' ? 'Begründung / Notiz <span class="req">*</span>' : 'Notizen';
+  $('submit').textContent = { in: 'Wareneingang buchen', out: 'Warenausgang buchen', corr: 'Korrektur buchen' }[m];
+  resetConfirm(); showMsg();
+  renderDetails();
+}
+
+function resetConfirm() { $('confirm').classList.add('hidden'); }
+
+/* Artikelsuche */
+function search() {
+  var q = $('search').value.trim().toLowerCase(), box = $('results');
+  box.innerHTML = '';
+  if (q.length < 2) { box.classList.add('hidden'); return; }
+  var hits = S.items.filter(function (i) {
+    return i.item.toLowerCase().indexOf(q) !== -1 || i.sku.toLowerCase().indexOf(q) !== -1 || (i.ean && i.ean.indexOf(q) !== -1);
+  }).slice(0, 25);
+  if (!hits.length) box.appendChild(el('div', 'Kein Treffer', 'muted'));
+  hits.forEach(function (i) {
+    var d = el('div'); d.tabIndex = 0;
+    d.appendChild(el('div', i.item));
+    d.appendChild(el('div', 'SKU ' + i.sku + (i.ean ? ' · EAN ' + i.ean : ''), 'hint'));
+    d.onclick = function () { pick(i); };
+    d.onkeydown = function (e) { if (e.key === 'Enter') pick(i); };
+    box.appendChild(d);
+  });
+  box.classList.remove('hidden');
+}
+
+function pick(i) {
+  S.item = i; S.details = null;
+  $('search').value = i.item; $('results').classList.add('hidden');
+  var vs = $('vendor');
+  if (i.vendor && !Array.prototype.some.call(vs.options, function (o) { return o.value === i.vendor; })) opt(vs, i.vendor);
+  vs.value = i.vendor || '';
+  renderDetails();
+  call('getItemDetails', i.item).then(function (d) { if (S.item && S.item.item === d.item) { S.details = d; renderDetails(); preview(); } })
+    .catch(function (e) { showMsg([e]); });
+}
+
+function renderDetails() {
+  var box = $('selected');
+  if (!S.item) { box.classList.add('hidden'); return; }
+  box.innerHTML = ''; box.classList.remove('hidden');
+  box.appendChild(el('div', S.item.item));
+  var d = S.details;
+  box.appendChild(el('div', 'SKU ' + S.item.sku + (d ? ' · Bestand: ' + (d.stock === null ? '–' : d.stock) : ' · lade …') +
+    (S.item.lotRequired ? '' : ' · ohne LOT-Pflicht'), 'hint'));
+  $('lotReq').classList.toggle('hidden', !S.item.lotRequired);
+  if (d && S.mode === 'in' && d.lots.length) {
+    box.appendChild(el('div', 'Vorhandene LOTs: ' + d.lots.map(function (l) { return l.lot; }).join(', '), 'hint'));
+  }
+  var cs = $('corrLot'); cs.innerHTML = ''; opt(cs, '', '– keine –');
+  if (d) d.lots.forEach(function (l) { opt(cs, l.lot, l.lot + ' · Rest ' + l.rest + (l.expiry ? ' · Verfall ' + l.expiry : '') + ' · ' + l.status); });
+}
+
+/* Warenausgang: FEFO-Vorschlag */
+function preview() {
+  if (S.mode !== 'out') return;
+  clearTimeout(S.previewTimer);
+  S.previewTimer = setTimeout(function () {
+    var qty = Number($('qty').value);
+    if (!S.item || !(qty > 0)) { $('lotTable').textContent = 'Artikel und Menge eingeben.'; return; }
+    call('previewShipment', { member: $('member').value, lsNo: $('lsNo').value || '-', item: S.item.item, qty: qty })
+      .then(function (p) { renderLotTable(p); }).catch(function (e) { showMsg([e]); });
+  }, 300);
+}
+
+function renderLotTable(p) {
+  var box = $('lotTable'); box.innerHTML = '';
+  var lots = (S.details && S.details.lots || []).filter(function (l) { return l.selectable; });
+  if (!lots.length) {
+    box.appendChild(el('div', S.item && S.item.lotRequired ? 'Keine freie LOT verfügbar (gesperrte und abgelaufene LOTs sind ausgeschlossen).' : 'Keine LOT nötig.', 'hint'));
+    if (p.lotText) box.appendChild(el('div', 'Buchung: ' + p.lotText, 'hint'));
+    return;
+  }
+  var sug = {}; (p.suggestion ? p.suggestion.parts : []).forEach(function (x) { sug[x.lot] = x.qty; });
+  var t = el('table'), h = el('tr');
+  ['LOT', 'Verfall', 'Rest', 'Menge'].forEach(function (x) { h.appendChild(el('th', x)); }); t.appendChild(h);
+  lots.forEach(function (l) {
+    var tr = el('tr'); tr.appendChild(el('td', l.lot)); tr.appendChild(el('td', l.expiry || '–')); tr.appendChild(el('td', String(l.rest)));
+    var td = el('td'), inp = el('input'); inp.type = 'number'; inp.min = '0'; inp.step = '1'; inp.inputMode = 'numeric';
+    inp.dataset.lot = l.lot; inp.value = sug[l.lot] || ''; inp.oninput = resetConfirm;
+    td.appendChild(inp); tr.appendChild(td); t.appendChild(tr);
+  });
+  box.appendChild(t);
+  if (p.suggestion && p.suggestion.missing) box.appendChild(el('div', p.suggestion.missing + ' Stk. ohne freie LOT → "OHNE LOT"', 'hint'));
+  if (p.warnings && p.warnings.length) showMsg([], p.warnings);
+}
+
+function lotParts() {
+  var parts = [];
+  document.querySelectorAll('#lotTable input').forEach(function (i) { var q = Number(i.value); if (q > 0) parts.push({ lot: i.dataset.lot, qty: q }); });
+  return parts;
+}
+
+/* Buchen */
+function payload(confirm) {
+  var base = { member: $('member').value, item: S.item ? S.item.item : '', qty: Number($('qty').value), notes: $('notes').value, confirm: !!confirm };
+  if (S.mode === 'in') { base.lot = $('lot').value; base.expiry = $('expiry').value; base.vendor = $('vendor').value; base.ref = $('ref').value; }
+  if (S.mode === 'out') {
+    base.lsNo = $('lsNo').value;
+    base.parts = lotParts(); // leer = FEFO-Vorschlag des Servers
+  }
+  if (S.mode === 'corr') { base.type = $('type').value; base.lot = $('corrLot').value; }
+  return base;
+}
+
+function clientCheck(p) {
+  var e = [];
+  if (!p.member) e.push('Bitte Mitarbeiter auswählen.');
+  if (!S.item) e.push('Bitte einen Artikel aus der Liste wählen.');
+  if (!(p.qty > 0) || Math.floor(p.qty) !== p.qty) e.push('Menge muss eine ganze Zahl größer 0 sein.');
+  if (S.mode === 'in' && S.item && S.item.lotRequired && !p.lot.trim()) e.push('LOT ist für diesen Artikel Pflicht.');
+  if (S.mode === 'out' && !p.lsNo.trim()) e.push('Lieferscheinnummer (LS No.) ist Pflicht.');
+  if (S.mode === 'corr' && !p.type) e.push('Bitte Korrekturtyp (+/−) auswählen.');
+  if (S.mode === 'corr' && !p.notes.trim()) e.push('Begründung ist Pflicht.');
+  return e;
+}
+
+function submit(confirm) {
+  if (S.busy) return;
+  var p = payload(confirm);
+  var e = clientCheck(p);
+  if (e.length) { showMsg(e); return; }
+  var fn = { in: 'bookReceipt', out: 'bookShipment', corr: 'bookCorrection' }[S.mode];
+  S.busy = true; $('submit').disabled = true; $('confirm').disabled = true; showMsg([], [], 'Buche …');
+  call(fn, p).then(function (r) {
+    if (r.errors && r.errors.length) { showMsg(r.errors, r.warnings); resetConfirm(); return; }
+    if (r.needsConfirm) { showMsg([], r.warnings); $('confirm').classList.remove('hidden'); return; }
+    if (r.ok) done(r);
+  }).catch(function (err) { showMsg([err]); })
+    .then(function () { S.busy = false; $('submit').disabled = false; $('confirm').disabled = false; });
+}
+
+function done(r) {
+  var box = $('done'); box.innerHTML = ''; box.classList.remove('hidden');
+  var d = el('div', undefined, 'msg ok'); d.appendChild(el('strong', r.summary[0]));
+  var ul = el('ul'); r.summary.slice(1).forEach(function (t) { ul.appendChild(el('li', t)); }); d.appendChild(ul); box.appendChild(d);
+  ['lsNo', 'search', 'qty', 'lot', 'expiry', 'ref', 'notes'].forEach(function (id) { $(id).value = ''; });
+  $('type').value = ''; $('vendor').value = '';
+  S.item = null; S.details = null; renderDetails(); $('lotTable').textContent = 'Artikel und Menge eingeben.';
+  resetConfirm(); showMsg();
+  box.scrollIntoView({ behavior: 'smooth' });
+}
+
+/* Start */
+document.querySelectorAll('.tabs button').forEach(function (b) { b.onclick = function () { setMode(b.dataset.mode); }; });
+$('search').oninput = function () { S.item = null; S.details = null; renderDetails(); search(); resetConfirm(); };
+$('qty').oninput = function () { resetConfirm(); preview(); };
+['lsNo', 'lot', 'expiry', 'ref', 'notes', 'type', 'corrLot', 'vendor'].forEach(function (id) { $(id).addEventListener('input', resetConfirm); });
+$('member').onchange = function () { store('lb_member', $('member').value); };
+$('submit').onclick = function () { submit(false); };
+$('confirm').onclick = function () { submit(true); };
+
+call('getInitData').then(function (d) {
+  S.items = d.items;
+  $('who').textContent = 'Angemeldet: ' + d.email;
+  d.members.forEach(function (m) { opt($('member'), m); });
+  var last = load('lb_member'); if (d.members.indexOf(last) !== -1) $('member').value = last;
+  d.vendors.forEach(function (v) { opt($('vendor'), v); });
+  d.types.forEach(function (t) { opt($('type'), t.name, t.label); });
+  setMode('in');
+}).catch(function (e) { $('who').textContent = ''; showMsg([e]); $('submit').disabled = true; });
+</script>
+</body>
+</html>
