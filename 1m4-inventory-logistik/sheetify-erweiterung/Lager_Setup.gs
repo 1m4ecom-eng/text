@@ -204,9 +204,11 @@ function LAGER_buildStock(ss, lagers, types, sep) {
   var head = ['Item', 'SKU'].concat(lagers).concat(['Gesamt', 'Stock On Hand', 'Abweichung']);
   sh.getRange(LAGER_CFG.headerRow, 1, 1, head.length).setValues([head]).setFontWeight('bold').setBackground('#1f3864').setFontColor('#ffffff');
 
-  var A = '$A$6:$A', inv = function (c) { return 'Inventory!$' + c + '$6:$' + c; };
+  // SUMIFS rechnet in ARRAYFORMULA nicht zeilenweise (die Artikel-Bedingung würde ignoriert).
+  // Deshalb je Lager MAP/LAMBDA über die Artikelliste: jede Zeile wird einzeln summiert.
+  var A = '$A$6:$A', IT = 'artikel', inv = function (c) { return 'Inventory!$' + c + '$6:$' + c; };
   var sum = function (sheet, qtyCol, itemCol, crit, lagerCol, X) {
-    return 'SUMIFS(' + sheet + '!$' + qtyCol + '$6:$' + qtyCol + ',' + sheet + '!$' + itemCol + '$6:$' + itemCol + ',' + A + ',' + crit + ',' + sheet + '!$' + lagerCol + '$6:$' + lagerCol + ',' + X + '$5)';
+    return 'SUMIFS(' + sheet + '!$' + qtyCol + '$6:$' + qtyCol + ',' + sheet + '!$' + itemCol + '$6:$' + itemCol + ',' + IT + ',' + crit + ',' + sheet + '!$' + lagerCol + '$6:$' + lagerCol + ',' + X + '$5)';
   };
   var f = [];
   f.push('=FILTER(' + inv(I.item) + ',' + inv(I.item) + '<>"")');
@@ -214,12 +216,12 @@ function LAGER_buildStock(ss, lagers, types, sep) {
   lagers.forEach(function (_, i) {
     var X = LAGER_letter(3 + i);
     var cs = function (typeCell) { return sum('Correction', C.qty, C.item, 'Correction!$' + C.type + '$6:$' + C.type + ',' + typeCell, C.lager, X); };
-    f.push('=ARRAYFORMULA(IF(' + A + '="","",' +
+    f.push('=MAP(FILTER(' + A + ',' + A + '<>""),LAMBDA(' + IT + ',' +
       sum('Purchases', P.qty, P.item, 'Purchases!$' + P.status + '$6:$' + P.status + ',"' + LAGER_CFG.received + '"', P.lager, X) +
       '-' + sum('Sales', S.qty, S.item, 'Sales!$' + S.status + '$6:$' + S.status + ',Setup!$G$11', S.lager, X) +
       '+' + cs(types.plus) + '-' + cs(types.minus) + '+' + cs(types.tplus) + '-' + cs(types.tminus) +
-      '+IF(XLOOKUP(' + A + ',' + inv(I.item) + ',' + inv(I.wh) + ',"")=' + X + '$5,XLOOKUP(' + A + ',' + inv(I.item) + ',' + inv(I.init) + ',0)' +
-      '+SUMIFS(Manufacture!$' + M.qty + '$6:$' + M.qty + ',Manufacture!$' + M.item + '$6:$' + M.item + ',' + A + '),0)))');
+      '+IF(XLOOKUP(' + IT + ',' + inv(I.item) + ',' + inv(I.wh) + ',"")=' + X + '$5,N(XLOOKUP(' + IT + ',' + inv(I.item) + ',' + inv(I.init) + ',0))' +
+      '+SUMIFS(Manufacture!$' + M.qty + '$6:$' + M.qty + ',Manufacture!$' + M.item + '$6:$' + M.item + ',' + IT + '),0)))');
   });
   var parts = lagers.map(function (_, i) { var X = LAGER_letter(3 + i); return X + '6:' + X; });
   f.push('=ARRAYFORMULA(IF(' + A + '="","",' + parts.join('+') + '))');

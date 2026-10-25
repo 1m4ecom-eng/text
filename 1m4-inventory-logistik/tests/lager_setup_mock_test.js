@@ -87,6 +87,11 @@ t('Tab "Bestand je Lager": Kopf + Formeln', () => {
   const c3 = f(3);
   ['Purchases!$R$6:$R,C$5', 'Purchases!$M$6:$M,"✅ Received"', 'Sales!$O$6:$O,C$5', 'Correction!$I$6:$I,Setup!$B$45', 'Correction!$I$6:$I,Setup!$B$46',
     'Inventory!$I$6:$I,"")=C$5', 'Inventory!$J$6:$J,0)', 'Manufacture!$F$6:$F,Manufacture!$D$6:$D'].map(de).forEach(x => assert.ok(c3.includes(x), x + ' fehlt in ' + c3));
+  [3, 4, 5].forEach(c => {
+    assert.ok(f(c).startsWith('=MAP(FILTER($A$6:$A;$A$6:$A<>"");LAMBDA(artikel;'), 'Lagerspalte muss zeilenweise (MAP) rechnen: ' + f(c));
+    assert.ok(!/SUMIFS\([^)]*\$A\$6:\$A/.test(f(c)), 'SUMIFS darf keine Array-Bedingung $A$6:$A haben (wird in Sheets nicht zeilenweise ausgewertet)');
+  });
+  Object.values(st.f).concat(Object.values(sheets.LOTs.f)).forEach(x => assert.ok(!(/ARRAYFORMULA/.test(x) && /SUMIFS\([^)]*\$A\$6:\$A/.test(x)), 'SUMIFS-Array in ARRAYFORMULA: ' + x));
   assert.ok(f(4).includes('D$5') && f(6).includes('C6:C+D6:D+E6:E') && f(7).includes('Inventory!$K$6:$K') && f(8).includes('F6:F-G6:G'));
 });
 t('Deutsches Gebietsschema: alle Formeln mit ";" (Textliterale unverändert), Prüfblatt gelöscht', () => {

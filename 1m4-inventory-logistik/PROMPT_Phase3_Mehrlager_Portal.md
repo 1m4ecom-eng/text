@@ -2,7 +2,19 @@
 
 Dieses Dokument ist vollständig: Konzept, Anleitung, Testfälle oben, alle Code-Dateien im ANHANG. Arbeite die Schritte der Reihe nach ab und STOPPE nach dem Testprotokoll.
 
-> **Version 2 (25.10.2026) – Neustart nach Testabbruch in Schritt 2.5.** Ursache des Abbruchs: `LAGER_setup` schrieb Formeln mit „,“ als Trennzeichen; die Tabelle hat deutsches Gebietsschema und erwartet „;“ („Fehler beim Parsen der Formel“). Korrigiert in **Anhang B4** (`Lager_Setup.gs`): Das Skript ermittelt das Trennzeichen der Tabelle jetzt selbst (kurzes temporäres Prüfblatt `_lager_probe_…`, wird sofort wieder gelöscht) und schreibt alle Formeln passend. Alle anderen Anhänge sind unverändert. Die TEST-Tabelle ist zurückgesetzt (geprüft: ursprüngliche LOT-Formeln, keine Spalte „Lager“, kein Tab „Bestand je Lager“, keine Umlagerungstypen). Neues Protokoll: `Phase3_Testprotokoll_v2.md`.
+> **Version 3 (25.10.2026) – FORTSETZUNG, nicht von vorne beginnen.**
+> Lauf v2 stoppte in Schritt 2.8: Im Tab „Bestand je Lager“ war die Abweichung ≠ 0 (−17 bei fast allen Artikeln). Ursache: SUMMEWENNS rechnet in ARRAYFORMULA nicht zeilenweise. Korrigiert in **Anhang B4** (`Lager_Setup.gs`): Die Lagerspalten rechnen jetzt mit MAP/LAMBDA je Artikel. Die neue Formel wurde bereits direkt in der TEST-Tabelle geprüft: Abweichung bei allen 278 Artikeln = 0 (Keyboard Cover 83, Privatrezepte 495). Alle anderen Anhänge sind unverändert.
+>
+> **Stand der TEST-Tabelle:** Schritte 1 bis 2.7 aus Lauf v2 sind erledigt (Spalte „Lager“, Umlagerungstypen, LOT-Formeln, Migration: 21 Zeilen = Medi-Learn). **Nicht zurücksetzen.**
+>
+> **In diesem Lauf genau so vorgehen:**
+> 1. Schritt 1 entfällt. Ausgangswerte sind bekannt: Keyboard Cover Stock On Hand 83; LOTs 1234 Rest −2, T-FREI 0, T-ALT 20, T-GESP 15, 1230 100.
+> 2. Schritte 2.1 bis 2.3 entfallen (bereits erledigt und geprüft).
+> 3. Schritt 2.4: **nur `Lager_Setup` durch Anhang B4 (Version 3) ersetzen** (enthält `MAP(` und `LAMBDA(artikel`), speichern, Zeilenzahl prüfen. `Lager_Migration` bleibt.
+> 4. Schritt 2.5: `LAGER_setup` erneut ausführen. Das ist wiederholbar: Spalten und Typen werden nicht doppelt angelegt. Erwartetes Protokoll: Trennzeichen „;“, Lager, LOT-Formeln gesetzt, Tab aufgebaut, **keine** Zeilen „angelegt“ für Spalten oder Typen.
+> 5. Schritt 2.6: `MIG_dryRun` → erwartet „Zuzuordnen: 0 · Unklar: 0 · Bereits gesetzt: 21“. Schritt 2.7 (`MIG_apply`) entfällt.
+> 6. Ab **Schritt 2.8** wie beschrieben weiter (Abweichung überall 0), dann 2.9, Schritt 3 und alle Testfälle in Schritt 4.
+> 7. Protokoll: `Phase3_Testprotokoll_v3.md`, Screenshots mit Präfix `P3v3_`.
 
 ## Kontext
 - Browser angemeldet als **1m4.ecom@gmail.com** (Besitzer), **nur dieses eine Google-Konto im Browser** (mehrere Konten blockieren die Web-App).
@@ -15,7 +27,7 @@ Dieses Dokument ist vollständig: Konzept, Anleitung, Testfälle oben, alle Code
 ## Regeln
 - Keine Sheetify-Menüfunktionen (Add Sale/Purchase/Inventory). Keine E-Mails, keine Freigaben (Sharing), keine Dateien außerhalb dieses Auftrags anlegen/löschen.
 - Fehler wörtlich protokollieren, nicht improvisieren. Wenn ein Schritt scheitert: STOPP und im Protokoll festhalten.
-- Ergebnis: `C:\Users\hr\Claude\Output\Phase3_Testprotokoll_v2.md` + Screenshots im selben Ordner (Dateinamen mit Präfix `P3v2_`).
+- Ergebnis: `C:\Users\hr\Claude\Output\Phase3_Testprotokoll_v3.md` + Screenshots im selben Ordner (Dateinamen mit Präfix `P3v3_`).
 
 ## Konzept (freigegeben)
 - **Lager** kommt aus Setup „Warehouse“ (Medi-Learn, Medichem, Medbuy). Neue Spalte **„Lager“** am rechten Rand von Sales (O), Purchases (R), Correction (O), LOTs (P).
@@ -36,7 +48,7 @@ Für „1m4 Keyboard Cover“ notieren und ins Protokoll schreiben:
 1. Sicherung der ursprünglichen `LotTracking.gs` liegt bereits vor (`C:\Users\hr\Claude\Temp\LotTracking_vorPhase3.gs.txt`, SHA-256 beginnt mit `130550b545157d89`). **Nicht überschreiben.** Nur prüfen, dass die Datei existiert.
 2. `LotTracking.gs`: Inhalt komplett durch **Anhang B6** ersetzen, speichern.
 3. `Schutz_Setup.gs`: Inhalt komplett durch **Anhang B7** ersetzen, speichern.
-4. Skriptdateien `Lager_Setup` (**Anhang B4 – neue Version**) und `Lager_Migration` (**Anhang B5**): sie existieren aus dem ersten Versuch bereits → Inhalt jeweils **komplett ersetzen** (sonst neu anlegen). Speichern. Per Zeilenzahl/SHA-256 prüfen, dass B4 die neue Version ist (enthält die Funktion `LAGER_separator`).
+4. Skriptdateien `Lager_Setup` (**Anhang B4**) und `Lager_Migration` (**Anhang B5**) anlegen bzw. Inhalt komplett ersetzen. Speichern. (Fortsetzung v3: siehe Kasten oben – nur B4 ersetzen.)
 5. In der Funktionsauswahl oben **`LAGER_setup`** auswählen (prüfen, dass sie wirklich ausgewählt ist) und ausführen. Ausführungsprotokoll abschreiben. Erwartet:
    - Erste Protokollzeile: `Formel-Trennzeichen der Tabelle: ";"`. Ein Tab `_lager_probe_…` taucht höchstens kurz auf und ist danach wieder weg.
    - Spalte „Lager“ in Sales O, Purchases R, Correction O, LOTs P (Kopf in Zeile 5, Auswahlliste mit den 3 Lagern).
@@ -85,4 +97,4 @@ Für jeden Fall: Eingaben, Ergebnis, betroffene Zeilen (Formeln intakt, Lager-Sp
 15. **Handy-Ansicht (390 px):** Startseite, Bestand, Umlagern, Buchungslog – Screenshots; nichts abgeschnitten, kein horizontales Scrollen.
 
 ## Ergebnis
-`Phase3_Testprotokoll_v2.md` mit: Ausgangswerte (Schritt 1), Ausführungsprotokolle LAGER_setup / MIG_*, Migrationszahlen, je Testfall Soll / Ist / OK-NOK / Dauer, Fehlermeldungen wörtlich, Zeilennummern, Screenshot-Dateinamen, angeforderte Berechtigungen. Danach STOPP.
+`Phase3_Testprotokoll_v3.md` mit: Ausgangswerte (Schritt 1), Ausführungsprotokolle LAGER_setup / MIG_*, Migrationszahlen, je Testfall Soll / Ist / OK-NOK / Dauer, Fehlermeldungen wörtlich, Zeilennummern, Screenshot-Dateinamen, angeforderte Berechtigungen. Danach STOPP.
