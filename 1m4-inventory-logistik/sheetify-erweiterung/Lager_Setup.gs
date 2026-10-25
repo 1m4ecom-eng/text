@@ -62,9 +62,43 @@ function LAGER_fill(tpl, t) {
   return tpl.replace(/\{(\w+)\}/g, function (_, k) { if (!(k in t)) throw new Error('Token ' + k + ' fehlt.'); return t[k]; });
 }
 
+/**
+ * Argument-Trennzeichen der Tabelle ermitteln. Formeln werden im Gebietsschema der Tabelle
+ * geparst (de_DE: ";"). Prüfung über ein temporäres Blatt, das danach wieder gelöscht wird.
+ */
+function LAGER_separator(ss) {
+  var tmp = ss.insertSheet('_lager_probe_' + new Date().getTime());
+  try {
+    var cell = tmp.getRange('A1');
+    cell.setFormula('=IF(TRUE,1,2)');
+    SpreadsheetApp.flush();
+    if (cell.getValue() === 1) return ',';
+    cell.setFormula('=IF(TRUE;1;2)');
+    SpreadsheetApp.flush();
+    if (cell.getValue() === 1) return ';';
+    throw new Error('Formel-Trennzeichen der Tabelle konnte nicht ermittelt werden.');
+  } finally {
+    ss.deleteSheet(tmp);
+  }
+}
+
+/** Ersetzt in einer Formel (mit "," geschrieben) die Trennzeichen außerhalb von Textliteralen. */
+function LAGER_loc(formula, sep) {
+  if (sep === ',') return formula;
+  var out = '', inStr = false;
+  for (var i = 0; i < formula.length; i++) {
+    var ch = formula.charAt(i);
+    if (ch === '"') inStr = !inStr;
+    out += (!inStr && ch === ',') ? sep : ch;
+  }
+  return out;
+}
+
 function LAGER_setup() {
   var ss = SpreadsheetApp.getActiveSpreadsheet(), log = [];
   var setup = ss.getSheetByName('Setup');
+  var sep = LAGER_separator(ss);
+  log.push('Formel-Trennzeichen der Tabelle: "' + sep + '"');
 
   // 1) Lagerliste aus Setup
   var wh = LAGER_find(setup, 'Warehouse');
@@ -138,14 +172,14 @@ function LAGER_setup() {
     'INDEX(SORT(FILTER(TO_TEXT(${LL}$6:${LL}),ok),FILTER(IF(ISNUMBER(${LE}$6:${LE}),${LE}$6:${LE},99999),ok),TRUE,FILTER(IF(ISNUMBER(${LR}$6:${LR}),${LR}$6:${LR},99999),ok),TRUE,FILTER(ROW(${LL}$6:${LL}),ok),TRUE),1))),""),"➡️ Nächste",""))';
   var rows = lots.getMaxRows() - LAGER_CFG.lotFirstRow + 1;
   [[L.aus, fJ], [L.korr, fK], [L.next, fN]].forEach(function (x) {
-    var tpl = LAGER_fill(x[1], tok), arr = [];
+    var tpl = LAGER_loc(LAGER_fill(x[1], tok), sep), arr = [];
     for (var i = 0; i < rows; i++) arr.push([tpl.replace(/#/g, String(LAGER_CFG.lotFirstRow + i))]);
     lots.getRange(x[0] + LAGER_CFG.lotFirstRow + ':' + x[0] + lots.getMaxRows()).setFormulas(arr);
   });
   log.push('LOTs: Formeln Ausgang Verkauf, Korrektur, Nächste je Lager gesetzt (' + rows + ' Zeilen)');
 
   // 5) Tab "Bestand je Lager"
-  LAGER_buildStock(ss, lagers, types);
+  LAGER_buildStock(ss, lagers, types, sep);
   log.push('Tab "' + LAGER_CFG.stockSheet + '" aufgebaut');
 
   SpreadsheetApp.flush();
@@ -154,7 +188,7 @@ function LAGER_setup() {
   return log;
 }
 
-function LAGER_buildStock(ss, lagers, types) {
+function LAGER_buildStock(ss, lagers, types, sep) {
   var I = LAGER_cols(ss.getSheetByName('Inventory'), { item: 'Item', sku: 'SKU', wh: 'Warehouse', init: 'Initial Stock', soh: 'Stock On Hand' });
   var P = LAGER_cols(ss.getSheetByName('Purchases'), { item: 'Item', qty: 'Recieved QTY', status: 'Status', lager: 'Lager' });
   var S = LAGER_cols(ss.getSheetByName('Sales'), { item: 'Item', qty: 'QTY', status: 'Status', lager: 'Lager' });
@@ -192,7 +226,7 @@ function LAGER_buildStock(ss, lagers, types) {
   f.push('=ARRAYFORMULA(IF(' + A + '="","",XLOOKUP(' + A + ',' + inv(I.item) + ',' + inv(I.soh) + ',0)))');
   var G = LAGER_letter(cGes), H = LAGER_letter(cSoh);
   f.push('=ARRAYFORMULA(IF(' + A + '="","",' + G + '6:' + G + '-' + H + '6:' + H + '))');
-  sh.getRange(6, 1, 1, f.length).setFormulas([f]);
+  sh.getRange(6, 1, 1, f.length).setFormulas([f.map(function (x) { return LAGER_loc(x, sep); })]);
   sh.getRange(6, 3, sh.getMaxRows() - 5, nL + 3).setNumberFormat('0');
   sh.setFrozenRows(LAGER_CFG.headerRow);
   sh.setColumnWidth(1, 300);

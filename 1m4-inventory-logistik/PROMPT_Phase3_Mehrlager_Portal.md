@@ -2,6 +2,8 @@
 
 Dieses Dokument ist vollständig: Konzept, Anleitung, Testfälle oben, alle Code-Dateien im ANHANG. Arbeite die Schritte der Reihe nach ab und STOPPE nach dem Testprotokoll.
 
+> **Version 2 (25.10.2026) – Neustart nach Testabbruch in Schritt 2.5.** Ursache des Abbruchs: `LAGER_setup` schrieb Formeln mit „,“ als Trennzeichen; die Tabelle hat deutsches Gebietsschema und erwartet „;“ („Fehler beim Parsen der Formel“). Korrigiert in **Anhang B4** (`Lager_Setup.gs`): Das Skript ermittelt das Trennzeichen der Tabelle jetzt selbst (kurzes temporäres Prüfblatt `_lager_probe_…`, wird sofort wieder gelöscht) und schreibt alle Formeln passend. Alle anderen Anhänge sind unverändert. Die TEST-Tabelle ist zurückgesetzt (geprüft: ursprüngliche LOT-Formeln, keine Spalte „Lager“, kein Tab „Bestand je Lager“, keine Umlagerungstypen). Neues Protokoll: `Phase3_Testprotokoll_v2.md`.
+
 ## Kontext
 - Browser angemeldet als **1m4.ecom@gmail.com** (Besitzer), **nur dieses eine Google-Konto im Browser** (mehrere Konten blockieren die Web-App).
 - TEST-Tabelle „1M4 Inventory – TEST“: https://docs.google.com/spreadsheets/d/1Vm_exwwkdNUawOEU_3kW8re-fqn29VaWd1KbsgLfBD0/edit
@@ -13,7 +15,7 @@ Dieses Dokument ist vollständig: Konzept, Anleitung, Testfälle oben, alle Code
 ## Regeln
 - Keine Sheetify-Menüfunktionen (Add Sale/Purchase/Inventory). Keine E-Mails, keine Freigaben (Sharing), keine Dateien außerhalb dieses Auftrags anlegen/löschen.
 - Fehler wörtlich protokollieren, nicht improvisieren. Wenn ein Schritt scheitert: STOPP und im Protokoll festhalten.
-- Ergebnis: `C:\Users\hr\Claude\Output\Phase3_Testprotokoll.md` + Screenshots im selben Ordner.
+- Ergebnis: `C:\Users\hr\Claude\Output\Phase3_Testprotokoll_v2.md` + Screenshots im selben Ordner (Dateinamen mit Präfix `P3v2_`).
 
 ## Konzept (freigegeben)
 - **Lager** kommt aus Setup „Warehouse“ (Medi-Learn, Medichem, Medbuy). Neue Spalte **„Lager“** am rechten Rand von Sales (O), Purchases (R), Correction (O), LOTs (P).
@@ -31,11 +33,12 @@ Für „1m4 Keyboard Cover“ notieren und ins Protokoll schreiben:
 - Screenshot des LOTs-Tabs.
 
 ## Schritt 2 – Sheetify-Projekt der TEST-Kopie (Erweiterungen → Apps Script)
-1. Inhalt der bestehenden Datei `LotTracking.gs` vollständig lokal sichern: `C:\Users\hr\Claude\Temp\LotTracking_vorPhase3.gs.txt`.
+1. Sicherung der ursprünglichen `LotTracking.gs` liegt bereits vor (`C:\Users\hr\Claude\Temp\LotTracking_vorPhase3.gs.txt`, SHA-256 beginnt mit `130550b545157d89`). **Nicht überschreiben.** Nur prüfen, dass die Datei existiert.
 2. `LotTracking.gs`: Inhalt komplett durch **Anhang B6** ersetzen, speichern.
 3. `Schutz_Setup.gs`: Inhalt komplett durch **Anhang B7** ersetzen, speichern.
-4. Neue Skriptdateien anlegen: `Lager_Setup` (**Anhang B4**), `Lager_Migration` (**Anhang B5**). Speichern.
-5. Funktion **`LAGER_setup`** ausführen (ggf. Berechtigung bestätigen). Ausführungsprotokoll abschreiben. Erwartet:
+4. Skriptdateien `Lager_Setup` (**Anhang B4 – neue Version**) und `Lager_Migration` (**Anhang B5**): sie existieren aus dem ersten Versuch bereits → Inhalt jeweils **komplett ersetzen** (sonst neu anlegen). Speichern. Per Zeilenzahl/SHA-256 prüfen, dass B4 die neue Version ist (enthält die Funktion `LAGER_separator`).
+5. In der Funktionsauswahl oben **`LAGER_setup`** auswählen (prüfen, dass sie wirklich ausgewählt ist) und ausführen. Ausführungsprotokoll abschreiben. Erwartet:
+   - Erste Protokollzeile: `Formel-Trennzeichen der Tabelle: ";"`. Ein Tab `_lager_probe_…` taucht höchstens kurz auf und ist danach wieder weg.
    - Spalte „Lager“ in Sales O, Purchases R, Correction O, LOTs P (Kopf in Zeile 5, Auswahlliste mit den 3 Lagern).
    - Setup unter „Correction Type“: „🔁 Umlagerung (+)“ (1) und „🔁 Umlagerung (−)“ (−1).
    - Neuer Tab „Bestand je Lager“ mit Spalten Item, SKU, Medi-Learn, Medichem, Medbuy, Gesamt, Stock On Hand, Abweichung.
@@ -82,4 +85,4 @@ Für jeden Fall: Eingaben, Ergebnis, betroffene Zeilen (Formeln intakt, Lager-Sp
 15. **Handy-Ansicht (390 px):** Startseite, Bestand, Umlagern, Buchungslog – Screenshots; nichts abgeschnitten, kein horizontales Scrollen.
 
 ## Ergebnis
-`Phase3_Testprotokoll.md` mit: Ausgangswerte (Schritt 1), Ausführungsprotokolle LAGER_setup / MIG_*, Migrationszahlen, je Testfall Soll / Ist / OK-NOK / Dauer, Fehlermeldungen wörtlich, Zeilennummern, Screenshot-Dateinamen, angeforderte Berechtigungen. Danach STOPP.
+`Phase3_Testprotokoll_v2.md` mit: Ausgangswerte (Schritt 1), Ausführungsprotokolle LAGER_setup / MIG_*, Migrationszahlen, je Testfall Soll / Ist / OK-NOK / Dauer, Fehlermeldungen wörtlich, Zeilennummern, Screenshot-Dateinamen, angeforderte Berechtigungen. Danach STOPP.
